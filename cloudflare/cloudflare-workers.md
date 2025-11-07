@@ -1,56 +1,83 @@
 # Cloudflare Workers
 
-<!-- tl;dr starts -->
+Unlike Cloudflare Pages, for Cloudflare Workers project, you can edit settings via:
 
-Cloudflare Workers is the serverless computing product for Cloudflare Developer Platform, similar to AWS Lambda.
+- Wrangler configuration file.
+- Cloudflare dashboard.
 
-<!-- tl;dr ends -->
+[Cloudflare recommended the config file is **the SSOT**](https://developers.cloudflare.com/workers/wrangler/configuration/#source-of-truth). Avoid making changes to the project via Dashboard since Wrangler will override them in the next deployment. If you must:
 
-> [!CAUTION]
->
-> According to a [Cloudflare Blog written in 2025-04-08](https://blog.cloudflare.com/full-stack-development-on-cloudflare-workers/), Pages is deemed to be sunset in the future. All of the resources are poured into Workers. I don't know if by the time you're reading this TIL, Pages has been completely migrated to Workers. But from now on, you should ALWAYS start new project with Workers. Luckily I've known this news before I've started to learn Pages.
+- Generate a TOML/JSONC snippet and copy into the config file.
+- Disable overriding behavior by setting `"workers_dev": true` and `"keep_vars": true`.
 
-## What can you do with a Worker?
-
-You can build a web application using:
-
-- A single Worker returns a small HTML page on a single route under a single domain.
-- A single Worker spans multiple domains, multiple routes for each domain,, different logic for each route.
-- Multiple Workers that work together and deliver a single experience to end users.
-
-Don't forget that Workers can integrate with other products in Cloudflare Developer Platform.
+```jsonc
+/**
+ * Cloudflare Workers Wrangler configuration file references:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+  "name": "my-worker",
+  "main": "src/index.js",
+  "compatibility_date": "2022-07-12",
+  // Prevent overriding env var set in Dashboard
+  "keep_vars": true,
+  // Prevent overriding routes set in Dashboard
+  "workers_dev": false,
+  "route": {
+    "pattern": "example.org/*",
+    "zone_name": "example.org"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "<MY_NAMESPACE>",
+      "id": "<KV_ID>"
+    }
+  ],
+  "env": {
+    "staging": {
+      "name": "my-worker-staging",
+      "route": {
+        "pattern": "staging.example.org/*",
+        "zone_name": "example.org"
+      },
+      "kv_namespaces": [
+        {
+          "binding": "<MY_NAMESPACE>",
+          "id": "<STAGING_KV_ID>"
+        }
+      ]
+    }
+  }
+}
+```
 
 ## Runtime
 
-Workers runtime uses V8 engine, the same engine used by Chromium and Node.js. It's designed to be JS-standards compliant.
+Workers use V8 engine runtime.
 
-> If you're a JS/TS developer from the start, consider yourself lucky.
+## Security
 
-## Execution
+Every Cloudflare's data center has Workers runtime running within its own "isolates", which provides security yet performant.
 
-Workers runtime runs in every data center of Cloudflare's global network. Every Worker run within its own "isolates". Cloudflare has designed the architecture for "isolate" that makes Workers efficient.
+**Isolate** is a lightweight "context" that provide THREE elements:
 
-"Isolate" is a lightweight context that provide:
-
-- Code
+- Code.
 - Variables that code can access.
 - A safe environment for code to be executed within.
 
-One instance of the Worker runtime can run hundreds to thousands of "isolates", seamlessly switching between them.
+One instance of the Worker runtime can run >100K+ of "isolates", simultaneously.
 
-Each isolate's memory is completely isolated, so each piece of code can be protected from other untrusted user-written code in the same runtime instance.
+"Isolate" memory is completely "isolated", so each piece of code can be protected from other untrusted user-written code in the same runtime instance.
 
-Isolates depend on containerization technology; therefore, an isolate can be created within an existing environment, resulting in very quick creation. If a virtual machine (VM) must be created for each function, we would have to wait for the VM's cold start to finish.
+**Isolates** depend on Linux kernel containerization technology, instead of waiting for VM spinning up for each function.
 
-Workers pays the overhead of a JavaScript runtime ONCE on the start of a container.
+The overhead of a JS runtime is paid once, on the start of a container.
 
 Workers processes are able to run limitless scripts with no individual overhead.
 
-An isolate can start ~100x faster than and consume an order of magnitude less memory than a Node process on a container or VM.
+An isolate can start **~100x** faster than and consume an order of magnitude less memory than a Node process inside a container or VM.
 
-## Response flow
-
-This is a very simple Workers flow:
+## Workflow
 
 ```ts
 export default {
@@ -60,21 +87,8 @@ export default {
 } satisfies ExportedHandler<Env>;
 ```
 
-What happended behind the scenes is:
+1. An HTTP Request is sent to `*.workers.dev` subdomain or to your Cloudflare-managed domain and received by Cloudflare's data centers.
 
-- A request to your `*.workers.dev` subdomain or to your Cloudflare-managed domain is received by any of Cloudflare's data centers.
+1. A specific `fetch()` handler matching the given request is invoked, with request data being passed into as parameter.
 
-- The request invokes the `fetch()` handler (more about Workers Handler later) defined in Workers code with the given request (there can be many Workers code inside your application but logically not all of them will match the request).
-
-- Request is responded by returning a `Response` object.
-
-## Static Assets
-
-According to [my ultimate web tech stack](../0-misc/my-ultimate-web-tech-stack.md), I've chosen [11ty](https://github.com/11ty/eleventy) as my static site generator.
-
-Sadly, by the time this TIL is written, [11ty wasn't supported by Cloudflare Workers](https://developers.cloudflare.com/workers/frameworks/), so I will use Workers to deploy the static assets that 11ty has built and develop the functions separately.
-
-## References
-
-- [Build applications with Cloudflare Workers (Learning Paths)](https://developers.cloudflare.com/learning-paths/workers/concepts/)
-- [2025-04-08, Cloudflare Blog's "Your frontend, backend, and database — now in one Cloudflare Worker"](https://blog.cloudflare.com/full-stack-development-on-cloudflare-workers/)
+1. A HTTP Response is sent back when `fetch()` handler return a `Response` object.

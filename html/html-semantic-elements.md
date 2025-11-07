@@ -6,13 +6,12 @@ While I was learning 11ty at this [site](https://learn-eleventy.pages.dev), I've
 
 <!-- tl;dr ends -->
 
-The banner role is usually reserved for content such as brand, navigation and search:
+1. `<main>`
 
-```html
-<header role="banner"></header>
-```
-
-You should only ever have one `<main>` element, and it makes sence to add it in a Base layout so every page can use it.
+- ONE page should only have ONE `<main>`
+- Main content of the page, **make the page become special and unique**
+- Used for: blog's content, product list, right-y admin panel, ... anything that holding the data that is the center of the page.
+- TIPS: add it into the Base layout of `11ty`
 
 When there are tons of links above main content, when someone focuses to the `<main>` and hit `Tab`, their focus will be sent to the next focusable element inside it.
 
@@ -22,6 +21,47 @@ When there are tons of links above main content, when someone focuses to the `<m
 <main tabindex="-1" id="main-content"></main>
 ```
 
+2. `<section>`
+
+- Groups of content that shares the same topic, ideally they're having `<h1>` to `<h6>`
+- Examples: New Posts, FAQ, ... or separated segments of a page
+- TIPS: use `aria-label` for better accessbility.
+
+3. `<article>`
+
+- An independent data section, tend to be reused.
+- Examples: a comment, a call-to-action, a review
+- CAUTION: do not use it to wrap unrelated elements, just because they're close.
+
+4. `<header>`
+
+- Introduction
+- Examples: a title, a logo, a banner, a menu nav (people use `<nav>` more), ...
+- Use it once, there can be `<section>` or `<article>` inside.
+
+The banner role is usually reserved for content such as brand, navigation and search:
+
+```html
+<header role="banner"></header>
+```
+
+5. `<nav>`
+
+- Navigation panel between main contents
+- Examples: a menu nav, a side bar
+
+6. `<footer>`
+
+- Ends the page, should only have ONE
+- Examples: author's info, copyright, links to multiple places
+
+7. `<aside>`
+
+- Related content but didn't crucial to the main content.
+- Examples: Sidebar, related blogs, quotes, tips, advertise panel
+
+8. Accessibility
+
 When there are 2 or more `<nav>`, having an `aria-label` attribute will have assistive technology users understand the difference between them:
 
 ```html
@@ -29,6 +69,7 @@ When there are 2 or more `<nav>`, having an `aria-label` attribute will have ass
 <!-- another nav -->
 <nav></nav>
 ```
+
 
 A logo can have `aria-hidden="true"` attribute on it if it's purely decorative and screen reader user doesn't need to know it's there. Using `focusable="false"` can prevent older screen readers from being able to focus it.
 

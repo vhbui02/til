@@ -1,0 +1,23 @@
+{
+  "name": "til",
+  "version": "1.0.0",
+  "description": "> Today I Learned",
+  "main": "index.js",
+  "devDependencies": {
+    "markdown-toc": "^1.2.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Silverbullet069/til.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Silverbullet069/til/issues"
+  },
+  "homepage": "https://github.com/Silverbullet069/til#readme"
+}

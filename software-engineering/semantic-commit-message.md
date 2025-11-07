@@ -16,6 +16,11 @@ _Definition:_ Given the version number `MAJOR.MINOR.PATCH`, increment the:
 
 ## Conventional Commits
 
+Each commit message consists of:
+- Header: a type, an optional scope and a description
+- Body.
+- Footer: less common, reserved for `BRECKING CHANGE: ` or `note: ` 
+
 ```txt
 <type>(<scope>): <description>
 <BLANK LINE>
@@ -24,56 +29,59 @@ _Definition:_ Given the version number `MAJOR.MINOR.PATCH`, increment the:
 <footer>
 ```
 
-Each commit message consists of a **header**, a **body** and a **footer**.
-
-The header includes a **type**, an optional **scope** and a **description**.
-
 ### Type
 
-A single noun indicating the subject of the change. Must be one of the following:
+A single noun indicating the subject of the change:
 
-- `<type>!:` exclamation mark or `BREAKING CHANGE:` footer introduce a breaking API change. Correlates with `MAJOR` in Semantic Versioning.
+<!-- prettier-ignore -->
+| Type      | SemVer | Description |
+|-----------|--------|-------------|
+| `<type>!:`| MAJOR  | Introduce a breaking API change. |
+| `feat:`   | MINOR  | Introduce a feature for the user (not a new feature for build script). |
+| `test:`   | MINOR  | Add new tests for new features, change old tests to fix regression tests, add/correct missing tests. |
+| `docs:`   | MINOR  | Change to the documentation. |
+| `fix:`    | PATCH  | Patch a bug in implementation (aside build script). |
+| `chore:`  | PATCH  | Anything that doesn't change the state of the codebase (e.g. renaming, formatting, whitespace fixes). |
 
-  > Refrain from using this type, introducing breaking changes means users have to acknowledge the change and proceed in migrating process to make existing infrastructure reflect them.
+Examples:
 
-  ```
-  feat!: send an email to the customer when a product is shipped
-  ```
+```
+feat!: send an email to the customer when a product is shipped
 
-  ```
-  feat: allow provided config object to extend other configs
+--------------------------------------------------------------------------------
 
-  BREAKING CHANGE: `extends` key in config file is now used for extending other config files
-  ```
+feat: allow provided config object to extend other configs
 
-  ```
-  chore!: drop support for Node 6
+BREAKING CHANGE: `extends` key in config file is now used for extending other config files
 
-  BREAKING CHANGE: use JavaScript features not available in Node 6.
-  ```
+--------------------------------------------------------------------------------
 
-- `feat:` introduce a feature for the user (not a new feature for build script). Correlates with `MINOR` in Semantic Versioning.
-- `fix:` patches a bug (again, not a bug in build script). Correlates with `PATCH` in Semantic Versioning.
-- `test:` add new tests for new features, change old tests to fix regression tests not working, add missing tests or correcting existing tests.
-- `docs:` change to the documentation.
-- `chore:` anything that doesn't change the state of the codebase. E.g. renaming a variable/function/class, formatting the code, fixing missing semicolons, removing whitespaces/tabs ...
+chore!: drop support for Node 6
 
-Here are some Angular-specific types:
+BREAKING CHANGE: use JavaScript features not available in Node 6.
+```
 
-- `build:` (Angular) changes that affect the build system or external dependencies.
-- `ci:` (Angular) changes to CI configuration files and scripts
-- `pref:` (Angular) changes that improve performance.
-- `refactor:` (Angular) rename variables, deduplicate codes, ...
-- `style:` (Angular) formatting, remove whitespace, ...
-- `revert:` (Angular) revert a previous commit. The commit SHAs that are being revered should be included in footers.
+> **NOTE:** Refrain from making breaking changes before considering the cost of users having to migrate.
+
+##### Angular types
+
+<!-- prettier-ignore -->
+| Type        | SemVer | Description |
+|-------------|--------|-------------|
+| `build:`    | MINOR  | Changes that affect the build system or external dependencies. |
+| `ci:`       | MINOR  | Changes to CI configuration files and scripts. |
+| `pref:`     | MINOR  | Changes that improve performance. |
+| `refactor:` | PATCH  | Rename variables, deduplicate code, etc. |
+| `style:`    | PATCH  | Formatting, remove whitespace, etc. |
+| `revert:`   | PATCH  | Revert a previous commit. The commit SHAs being reverted go in footer. |
+
+> IMO, `style:` + `refactor:` is a sub-set of `chore:`
 
 ```
 revert: let us never again speak of the noodle incident
 
 Refs: 676104e, a215868
 ```
-
-> IMO, `style:` + `refactor:` seems overlapping each other and `chore:` as well.
 
 ```
 docs: correct spelling of CHANGELOG
@@ -89,14 +97,12 @@ feat(lang): add Vietnamese language
 
 ### Description
 
-One succint sentence:
+Rules:
 
-- written in imperative mood (i.e. verb in present tense, no pronoun)
+- one succint sentence written in imperative mood (i.e. verb in present tense, no pronoun)
 - no capitalize the first letter
 - no full stop.
-- refs, closes to issues, bugzilla tickets (if any)
-
-> Angular convention said that you can put it in **footer**, but again I want to see the issue number in Web UI.
+- refs, closes to issues, bugzilla tickets (if any). By doing so, you can access issue/PRs link in Web UI.
 
 **NOTE:** Each line in a commit message should not exceed 80/100 characters since it allows the message to be easier to read on GitHub and various git tools.
 

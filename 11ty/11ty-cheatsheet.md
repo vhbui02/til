@@ -69,7 +69,7 @@ eleventy.config.mjs
 jsconfig.json
 ```
 
-## Configuration file
+## Configuration API
 
 ```js
 // plugins
@@ -77,6 +77,8 @@ import eleventyRssPlugin from "@11ty/eleventy-plugin-rss";
 import { I18nPlugin } from "@11ty/eleventy";
 
 // internal modules
+// CAUTION: not recommended
+// CAUTION: config file should be SSOT
 import { sortByDisplayOrder } from "./src/utils/sort.js";
 import dateFilter from "./src/filters/date-filter.js";
 import w3DateFilter from "./src/filters/w3-date-filter.js";
@@ -86,30 +88,30 @@ import w3DateFilter from "./src/filters/w3-date-filter.js";
 export default function (eleventyConfig) {
   // CAUTION: Order matters!
 
-  // eleventyConfig.setDynamicPermalinks(false); // disable dynamic templating totally, this will disable save location customization. Might be a lot faster.
+  // `permalink:` is the only data key that can be processed by template engine
+  // NOTE: improve build time significantly
+  eleventyConfig.setDynamicPermalinks(false);
 
   // Plugins
   eleventyConfig.addPlugin(eleventyRssPlugin);
   eleventyConfig.addPlugin(I18nPlugin, {
-    // any valid BCP 47-compatible language tag is supported
-    defaultLanguage: "", // Required, this site uses "en"
+    // BCP 47-compatible language tag
+    defaultLanguage: "en",
 
     // Rename the default universal filter names
+    // optional
     filters: {
-      // transform a URL with the current page’s locale code
-      url: "locale_url",
-
-      // find the other localized content for a specific input file
-      links: "locale_links",
+      url: "locale_url", // transform a URL with the current page’s locale code
+      links: "locale_links", // find the other localized content for a specific input file
     },
 
     // When to throw errors for missing localized content files
     errorMode: "strict", // throw an error if content is missing at /en/slug
-    // errorMode: "allow-fallback", // only throw an error when the content is missing at both /en/slug and /slug
-    // errorMode: "never", // don’t throw errors for missing content
+    errorMode: "allow-fallback", // only throw an error when the content is missing at both /en/slug and /slug
+    errorMode: "never", // don’t throw errors for missing content
   });
 
-  // cre: https://www.11ty.dev/docs/languages/nunjucks/#nunjucks-environment-options
+  // per-engine env option
   eleventyConfig.setNunjucksEnvironmentOptions({
     throwOnUndefined: true,
   });
@@ -140,6 +142,8 @@ export default function (eleventyConfig) {
   eleventyConfig.setServerPassthroughCopyBehavior("passthrough"); // def="copy", files are referenced directly and will not be copied to your output directory. Changes to passthrough file copies WILL NOT trigger an 11ty build but will live reload appropriately in the dev server
 
   // structured content at a collection level
+  // CAUTION: inner callback order of execution is unknown, collections creation order is unpredictable
+  // TIPS: consider using filter against a collection created by `tags:` with memoization
   eleventyConfig.addCollection("work", (collection) =>
     sortByDisplayOrder(collection.getFilteredByGlob("./src/work/*.md"))
   );
@@ -169,59 +173,21 @@ export default function (eleventyConfig) {
 
   eleventyConfig.addFilter("dateFilter", dateFilter);
   eleventyConfig.addFilter("w3DateFilter", w3DateFilter);
-  // Tips: you can also add filter for specific templating languages, such as Nunjucks
-  // eleventyConfig.addNunjucksFilter(...)
+
+  // per-engine filter
+  eleventyConfig.addNunjucksFilter(
+    "concatThreeStrings",
+    function (arg1, arg2, arg3) {
+      return arg1 + arg2 + arg3;
+    }
+  );
 
   return {
     // NOTE; order doesn't matter
     markdownTemplateEngine: "njk", // Markdown files run through this template engine before translating to HTML
-    dataTemplateEngine: "njk",
+    dataTemplateEngine: "njk", // *.11tydata.*, *.json, ...
     htmlTemplateEngine: "njk", // HTML files run through this template engine before translating to (better) HTML
   };
-}
-```
-
-## [Nunjucks](https://www.11ty.dev/docs/languages/nunjucks/)
-
-It's my go-to Template Engine when working with 11ty. Mozilla created it.
-
-### Features
-
-- Set `{% set variableName %}`, `{% set variableName = "value" %}`. **NOTE:** async not supported, use `{% setAsync %}` instead.
-- Includes (abs + rel): `{% includes 'includes.njk' %}`, `{% includes './includes.njk' %}`
-- Extends (abs + rel): `{% extends 'base.njk' %}` , `{% extends './base.njk' %}`
-- Imports (abs + rel): `{% import 'macros.njk' %}`, `{% import './macros.njk' %}`
-- Built-in Universal Filters: `{{ name | filterName }}`.
-  - `url`: normalie abs paths in content
-  - `slugify` (memoized): change all non-alphanumeric to hyphen
-  - `log` : run `console.log` inside templates
-  - `getNextCollectionItem/getPreviousCollectionItem`
-  - `inputPathToUrl` (memoized): map a template input path to output URL
-  - `renderTransforms`
-- Custom filter:
-  - Added using Configuration API `addFilter("filterName", function (value) { ... } )` and `addAsyncFilter("asyncFilterName", function (value, callback) { ... }`
-  - Inside the callback function, 11ty allows access for specific data properties: `this.page`, `this.eleventy`, `this.env`, `this.ctx`.
-  - Memoization supported: `addFilter("filterName", memoize((value) => { ... }))`.
-  - Custom filter can be added per-engine using Configuration API: `addLiquidFilter()`, `addNunjucksFilter()` and their async counterparts.
-- Custom Tags
-- Shortcodes: reusable bits of content.
-
-### Syntax
-
-Use double curly braces syntax (now called "template syntax") to refer to variables, use ` ... | filterName` to apply filter.
-
-```njk
-{{ foo }}
-{{ foo | bar }}
-```
-
-### Environment Options
-
-```js
-export default function (eleventyConfig) {
-  eleventyConfig.setNunjucksEnvironmentOptions({
-    throwOnUndefined: true,
-  });
 }
 ```
 
@@ -235,9 +201,9 @@ IMO, this Data Cascade is hardest part to grasp in 11ty. One could render their 
 
 ### 1. [Global Data Files](https://www.11ty.dev/docs/data-global/)
 
-- Store static data or code, can be dynamically retrived during build.
-- Every template can use them.
+- Store static data can be **globally** dynamically retrived during build (any Layouts and Pages can access them)
 - File-based locator: use file/directory name with dot notation.
+- Appropriate for small arrays pulling from remote CMS..
 
 **Examples:**
 
@@ -295,7 +261,7 @@ src/_data/data.json           # JSON file
 - `eleventyFetch()` function caches the API responses for 1 day, improve build performance.
 - During build process, 11ty auto calls exported function.
 - Return empty array on failure, prevent template crash.
-- Parameter `configData`: access 11ty's built-in global variables.
+- Parameter `configData`: access 11ty's `eleventy` data.
 
 `src/_data/studioList.js`:
 
@@ -381,10 +347,11 @@ eleventyConfig.addGlobalData("myAsyncFunction", async () => {
 
 ### 3. [Front Matter Data in Layout Templates](https://www.11ty.dev/docs/layouts/#front-matter-data-in-layouts)
 
-- Anything duplicated among the Pages goes inside Layout Templates. Duplicates among low-level Layout Templates can be put inside high-level Layout Templates (11ty called it [Layout Chaining](https://www.11ty.dev/docs/layout-chaining/))
-- By default, the Layout Template's extension is `.html` and placed inside `src/_includes/layouts/*.html`.
-- Layout Template's frontmatter data can be merged with Page's frontmatter data, Page's frontmatter data have higher priority.
-- Layout Template's frontmatter data can specify some [special data keys](#special-data-keys) that would prove useful for all Pages, use `layout:` allow one Layout Template using other Layout Template.
+- Anything duplicated among the Pages can be put inside Layout frontmatter.
+- There are many level of Layouts (11ty called it [Layout Chaining](https://www.11ty.dev/docs/layout-chaining/)): duplicates among low-level Layout frontmatter can be put inside high-level Layout frontmatter.
+- **By default**, the Layout extension is `.html` and placed inside `src/_includes/layouts/*.html`.
+- Layout frontmatter can be merged with Page frontmatter, Page frontmatter has higher precedence.
+- Layout frontmatter can include some [special data keys](#special-data-keys) (e.g. `tags`, `permalink`, `layout:`...) for Pages to use.
 
 > [!NOTE]
 >
@@ -392,7 +359,7 @@ eleventyConfig.addGlobalData("myAsyncFunction", async () => {
 
 > [!TIP]
 >
-> Frontmatter data in Layout Templates is best avoided for better maintainability. The fewer data sources there are, the simpler the application will be.
+> Layout frontmatter should be avoided for maintainability. The fewer data sources there are, the simpler the application will be.
 
 **Examples:** Layout Template: `src/_includes/layout/base.html`
 
@@ -416,13 +383,12 @@ title: My Awesome Blog
 </html>
 ```
 
-### 4. [Template and Directory Specific Data Files](https://www.11ty.dev/docs/data-template-dir/)
+### 4. [Template and Directory Data Files](https://www.11ty.dev/docs/data-template-dir/)
 
-- Global data is good, but sometimes you want to the data to be available locally to **ONE specific template** or **ONE specific directory of templates**.
-- These Pages are commonly written in Markdown with front matter.
-- JavaScript data file has the highest priority.
-- The name of the data files must match either the name of the template or the name of the directory it resides within (as shown in Highest and High examples)
-  - Change behavior with `eleventyConfig.setDataFileBaseName("index");` API
+- Pages are Markdown with frontmatter.
+- JavaScript data files have the highest priority.
+- The name of the data files must match either the name of the Page (hence the Template Data File), or the name of the directory (hence the Directory Data File).
+  => This name matching behavior can be changed with `eleventyConfig.setDataFileBaseName("index");` API. But 99% of the time you will leave it as-is.
 
 **Example:** list available data in Page `src/posts/subdir/my-first-blog-post.md`
 
@@ -442,11 +408,20 @@ title: My Awesome Blog
   - `src/posts/posts.json` (best practice)
 
     ```jsonc
-    // Apply a default layout and permalink to multiple Pages inside `src/posts/**/*`
     {
+      // Apply a default layout and permalink to multiple Pages inside `src/posts/**/*`
+      // NOTE: "layout" shouldn't be managed by CMS.
       "layout": "layouts/post.njk",
-      // custom permalink required ending with `/index.html` to prevent 11ty creating a plaintext file whose name is the title after being slugified
-      "permalink": "/post/{{ title | slugify }}/index.html"
+
+      // if you're creating a custom permalink
+      // make sure to end it with `/index.html` to prevent 11ty creating a plaintext
+      // file whose name is the title after being slugified in output directory
+      "permalink": "/post/{{ title | slugify }}/index.html",
+
+      // sometimes, source files shouldn't be mapped to an output file
+      // i.e. when you want to render a list of contents from multiple files
+      // inside a SINGLE page
+      "permalink": false // prevent 11ty from generating output file for each Page file
     }
     ```
 
@@ -479,8 +454,9 @@ eleventyComputed: # can use and set variable and shortcodes for other front matt
 
 ### 6. [Computed Data](https://www.11ty.dev/docs/data-computed/)
 
-- Leverage the special data key `eleventyComputed`.
-- `eleventyComputed` is best specified inside **JS frontmatter** and/or **JS Data Global/Template/Directory File**
+Calculate data keys from other data keys, under a special data key called `eleventyComputed:`
+
+`eleventyComputed` is best specified inside **JS frontmatter** and/or **JS Data Global/Template/Directory File**
 
 ```js
 export default {
@@ -505,10 +481,10 @@ export default {
 - Prerequiiste: Navigation plugin relies on special data key `eleventyNavigation` that must be set inside EVERY individual Page file.
 - Problem:
   - Pages is created by CMS has arbitrary set of frontmatter fields.
-  - JSON Data Directory Files? It can only set default values yet `eleventyNavigation` must be set based on other data.
+  - JSON Data Directory Files? It can only set default values. `eleventyNavigation` is vary between Page files.
 - Solution:
 
-Page file: `src/posts/my-page-title.md` (and other `src/posts/*.md` file)
+Page file: `src/posts/my-page-title.md` (and other `src/posts/*.md` files)
 
 ```yml
 ---
@@ -517,25 +493,29 @@ parent: My Parent Key
 ---
 ```
 
-JS Global Data File: `src/_data/eleventyComputed.js`
+---
+
+**Option 1:** JS Global Data File - `src/_data/eleventyComputed.js` (**NOTE: the file name is already eleventyComputed**)
 
 ```js
 export default {
   eleventyNavigation: {
-    // the `data` parameter holding all data that has been cascaded from the start
-    // even `permalink` (this is a special case)
+    // the `data` parameter holding all data that has been cascaded from the start, even `permalink:` (exception)
     key: (data) => data.title,
     parent: (data) => data.parent,
   },
 };
 ```
 
-JS Data Directory File + `eleventyComputed`: `src/posts/posts.11tydata.js`
+---
+
+**Option 2:** JS Data Directory File - `src/posts/posts.11tydata.js`
 
 ```js
 export default {
   eleventyComputed: {
     eleventyNavigation: {
+      // the `data` parameter holding all data that has been cascaded from the start, even `permalink:` (exception)
       key: (data) => data.title,
       parent: (data) => data.parent,
     },
@@ -543,28 +523,9 @@ export default {
 };
 ```
 
-The following data is automatically provied to Page files
+---
 
-```json
-{
-  // From Page's frontmatter, or lower-priority data sources in Data Cascade stack
-  "title": "My Page Title",
-  "parent": "My Parent Key",
-  // From JS Data Directory File
-  "eleventyNavigation": {
-    "key": "My Page Title",
-    "parent": "My Parent Key"
-  }
-}
-```
-
-If you don't want to use JavaScript, and the Page was manually created:
-
-- Write YAML frontmatter fields directly for simplicity.
-- Write JSON Data Directory files, remember to use the same template syntax.
-- NOTE: "template syntax" is slower than using JavaScript. This is enough to switch to JavaScript entirely.
-
-`src/posts/posts.json`:
+**Option 3:** JSON Data Directory File `src/posts/posts.json`
 
 ```json
 {
@@ -576,7 +537,7 @@ If you don't want to use JavaScript, and the Page was manually created:
 }
 ```
 
-`src/posts/my-page-title.(md|njk)`
+**Option 4:** Page frontmatter `src/posts/my-page-title.(md|njk)`
 
 ```yml
 ---
@@ -592,37 +553,98 @@ eleventyComputed:
 ---
 ```
 
+---
+
+The following data is automatically provied to Page files
+
+```json
+{
+  // From Page's frontmatter, or lower-priority data sources in Data Cascade stack
+  "title": "My Page Title",
+  "parent": "My Parent Key",
+
+  // From JS Data Directory File
+  "eleventyNavigation": {
+    "key": "My Page Title",
+    "parent": "My Parent Key"
+  }
+}
+```
+
+If you don't want to use JavaScript, and the Page was manually created:
+
+- Write YAML frontmatter fields directly for simplicity.
+- Write JSON Data Directory files, remember to use the same template syntax.
+
+**NOTE:** template syntax parsing is slower from using JavaScript. Just use JavaScript all the time.
+
 ## [Special data keys](https://www.11ty.dev/docs/data-configuration/)
 
-### Overview
+Among the data keys that are specified inside [SIX sources of data](#six-sources-of-data) (except computed data), there are a few built-in special data keys controlling the behavior of the Layout/Page.
 
-Among the SIX source of data, there are a few sources that use special data keys as data. These keys can be found inside **JSON data file** or **Markdown frontmatter**.
+**Basic data keys:**
 
-> [!IMPORTANT]
->
-> All frontmatter keys aren't able to use template syntax, except `permalink`.
+```json
+{
+  // change the output target of the current template
+  // `permalink:` is allowed to use template engine syntax, for `layout:` you can't
+  "permalink": "",
 
-Common data keys:
+  // wrap the current Page with a Layout found inside `src/_includes` directory
+  // can't use template engine syntax
+  // Don't add prefix `src/_includes`
+  "layout": "",
 
-- `permalink`: change the output target of the current template. Can use template syntax.
-- `layout`: wrap current Page with a Layout Template found in `src/_includes` folder. DO NOT add prefix `src/_includes` folder.
-- `pagination`: enable iterating over data, outputing multiple HTML files from a single Page fiie.
-- `tags`: a single string, that identifies that a piece of content is part of a collection.
-- `date`: override the default date (the file creation metadata on OS filesystem) to customize how the file is sorted in a collection. 11ty has clever set up for dates:
-  - If there is no `date:`, and there is no date information in the file name, it will use the file's metadata (more specifically, file creation) in OS.
-  - If there is no `date:`, and there is date informatin (e.g. `2025-01-01-foo-bar.md`), it will extract the date from there.
-  - There are multiple ways to specify `date:`
-    - `date: Last Modified`: resolve to the file's last modified date.
-    - `date: Created`: resolve to the file's created date (this is what used if `date` is omitted)
-    - `date: git Last Modified`: resolve to the file's latest git commit (besure to check in the file)
-    - `date: git Created`: resolve to the file's first git commit.
-    - `date: "2025-01-01"`: enclosed double quotes.
-    - `date: 2025-01-01`: no double quotes.
+  // enable iterating over data
+  // output multiple HTML files from a single fiie.
+  // use a technique called "Content as Data"
+  "pagination": "",
 
-Advanced data keys:
+  // a String or an Array of String
+  // identify a content is part of a Collection
+  "tags": "foo",
+  "tags": ["foo", "bar"],
 
-- `templateEngineOverride`: sometimes, a file needed to be processed differently.
-- `eleventyComputed`: set a complex data values based on other values in the Data Cascade stack. The complex data values is the 6th and highest priority source of data: [Computed Data](#6-computed-data)
+  // customize date behavior, allows you to control how a content is sorted inside
+  // a Collection
+  // The order in which datetime data sources are applied:
+  // 1. File creation data in OS
+  // 2. Datetime format found in file's name
+  // 3. `date:` frontmatter key. Beside standard datetime format, 11ty supports a set of options
+  "date": 2025-01-01,           // no double quotes
+  "date": "2025-01-01",         // double quotes
+  "date": "Last Modified",      // stat -c "%y"
+  "date": "Created",            // stat -c "%W"
+  "date": "git Last Modified",  // latest Git commit
+  "date": "git Created",        // first Git commit
+}
+```
+
+**Advanced data keys:**
+
+```json
+{
+  // Per-file template engine customization
+  // By default, Markdown files are processed with `markdownTemplateEngine` configuration option
+  // If this option is used, explicitly listed every engines you would like to use
+  "templateEngineOverride": "md", // only Markdown, nothing else, not markdownTemplateEngine`
+  "templateEngineOverride": "njk, md", // processed via Nunjucks first, its output will be feeded to Markdown
+  "templateEngineOverride": false, // copy the template, without doing any transformation.
+
+  // Per-file Collection exclusion
+  "eleventyExcludeFromCollections": false,
+
+  // The 6th data sources
+  // Layman's term - you can create data keys whole value is dependent on other data keys, including ones created by 11ty like `page`
+  // Resembles dynamic Data Directory File, which is something only `permalink:` is exceptionally supported
+  // NOTE: refer to them directly instead of `page.eleventyComputed.*`
+  "eleventyComputed": {
+    "key": "{{ title }}",
+    "parent": "{{ parent }}"
+  }
+}
+```
+
 - `eleventyDataSchema`: validate data in the Data Cascade stack.
 - `eleventyNavigation`: object used by Navigation plugins.
 - `eleventyImport.collections`: ...
@@ -640,32 +662,40 @@ Advanced data keys:
 | `src/about.md` | `src/_site/about/index.html` | `/about/` |
 | - `subdir/template.md`<br/>- `subdir/template/template.md`<br/>- `subdir/template/index.md` | `_site/subdir/template/index.html` | `/subdir/template/` |
 
-**Examples:**
-
-1. Common syntax
+**Static `permalink:`**
 
 ```yml
 ---
-# ============================================================================ #
+title: "Static permalink"
+permalink: "dir/subdir/unexisted/"
+permalink: "dir/subdir/unexisted/index.html" # always end with /index.html at the end
+permalink: false # prevent writing file to output directory
 
-# static permalink
-permalink: "new-path/subdir/unexisted/"
-permalink: "new-path/subdir/unexisted/index.html" # always end with /index.html at the end
-# 11ty create non-existant subdir automatically
-# Output target: _site/new-path/subdir/unexisted/index.html
+# Unexisted output nested directory are created automatically
+# Output:
+# _site/new-path/subdir/unexisted/index.html
+```
 
-# skip writing output file to the file system
-permalink: false
+**Dynamic `permalink:`**
 
-# ============================================================================ #
+```yml
+---
+title: "Dynamic permalink"
+permalink: "/{{ page.fileSlug }}/" # remove directory prefix
+permalink: "/{{ page.date }}/{{ page.filePathStem }}" # prepend date with existing structure
+permalink: "/{{ title | slug }}/" # create permalink from title
+permalink: "subdir/{{ title | slugify }}/index.html"
 
-# dynamic permalink
-title: "New path"
-permalink: "subdir/{{ title | slugify }}/index.html" # double quote! YAML parse everything wrapped inside `{}` as obj
-# Output target:
+# YAML parse everything wrapped inside `{}` as obj if there is no double-quotes
+# Enclose every text data with double-quotes to prevent unexpected behavior
+# Output:
 # _site/subdir/new-path/index.html
+```
 
-# special `page` variable
+**`permalink:` utilize `page:` variable:**
+
+```yml
+---
 date: "2025-05-01"
 permalink: "/blog/{{ page.date | date: '%Y/%m/%d' }}/index.html"
 permalink: "/posts/{{ page.date | date: '%Y/%m/%d' }}-{{ title | slugify }}/index.html"
@@ -705,102 +735,191 @@ Iterate over a data set and create multiple files from a single template. Pagina
 
 Pagination can be made against an Array (most common), an Object. Data source can come from frontmatter data, local or global files.
 
-List of properties inside `pagination` object:
+---
+
+Data structure of `pagination` object:
 
 ```json
+// prettier-ignore
 {
-  "items": [], // array of current pags's chunk of data
-  "pageNumber": 0, // current page number, zero-based indexed
-  "hrefs": [], // array of all page's `<a href="...">`
-  "href": {
-    "next": "url", // <a href="...">Next Page</a>
-    "previous": "url", // <a href="...">Previous Page</a>
-    "first": "...", // self-explanatory
-    "last": "..." // self-explanatory
-  },
-  "pages": [], // array of all chunks of paginated data
-  "page": {
-    "next": {}, // Data object for the next page
-    "previous": {}, // Data object for the previous page
-    "first": {}, // Data object for the first page
-    "last": {} // Data object for the last page
-  }
+  "data": "...",        // original string key to the dataset (i.e. `data:` value)
+  "size": 69,           // page chunk sizes
 
-  // inside each of the above object are properties inside `page` data key
-  // that I've specified in 11ty Supplied Data section above.
+  "items": [],          // array of current pags's chunk of data
+  "pageNumber": 0,      // current page number, zero-based indexed
+
+  "hrefs": [],          // array of all page's `<a href="...">`
+  "href": {
+    "next": "url",      // the URL to put inside <a href="...">Next Page</a>
+    "previous": "url",  // the URL to put inside <a href="...">Previous Page</a>
+    "first": "url",     // the URL to put inside <a href="...">First Page</a> 
+    "last": "url"       // the URL to put inside <a href="...">Last Page</a>
+  },
+
+  "pages": [],          // array of all chunks of paginated data (in order)
+  "page": {
+    "next": {},         // Data object for the next page
+    "previous": {},     // Data object for the previous page
+    "first": {},        // Data object for the first page
+    "last": {}          // Data object for the last page
+  }
 }
 ```
 
-**Example:**
+---
 
 1. `src/paged.njk`:
 
-```md
+```yml
 ---
 tags:
   - myCollection
 pagination:
-  # specify data set
-  data: testdata
-  # control the number of each chunk
-  size: 1 
-  // size 2
-  # using pagintation.items is tedious
-  # if size=1, it's alias for scalar value `pagination.items[0]`
-  # if size>1, it's alias for Array `pagination.items`
+  data: testdata  # a variable whose value is an array, a collection, ...
+
+  size: 1 # control the number of each chunk
+  size: 2
+
+  # if size=1, alias == Scalar `pagination.items[0]`
+  # if size>=2, alias == Array `pagination.items`
   alias: wonder
-  # Force generate one pagination output with empty chunk of items
-  generatePageOnEmptyData: true
+
   # Reverse the data, output: `["item 4", "item 3"]` and `["item 2", "item 1"]`.
   # NOTE: Collection API can do this also
   reverse: true
+
   # remove values from paginated data, output: `["item 1", "item 2"]` and `["item 4"]`
   filter:
     - item3
-  # by default, collections.myCollection will only add the first page if size > 1
+
+  # if the layout has a `tags:` by default, each page generated by the Pagination will be added to the same collection
   addAllPagesToCollections: true
+
+  # Force generate one pagination output with empty chunk of items
+  generatePageOnEmptyData: true
+
+  # CAUTION: this property can only be defined inside JS frontmatter ---js
+  # Callback functions that modify, filter, change the pagination data in general
+  #
+  # Order of execution:
+  # 1. before:
+  # 2. reverse: true
+  # 3. filter:
+  before: |
+    function(paginationData, fullData) {
+      let slug = this.slugify(fullData.title)
+      return paginationData.map(item => `${slug}-${item} with a suffix.`)
+    }
+
 testdata:
   - item1
   - item2
   - item3
   - item4
 permalink: "different/{{ pagination.items[0] | slugify }}/index.html"
-# better
-permalink: "different/{{ wonder | slugify }}/index.html"
-# if size: 2
-permalink: "different/{{ wonder[0] | slugify }}/index.html"
+permalink: "different/{{ wonder | slugify }}/index.html"  # better
+permalink: "different/{{ wonder[0] | slugify }}/index.html" # size >=2
 ---
 
 You can use the alias in your content too {{ wonder[0] }}.
+
+# for size: 1
+# output: _site/different/item1/index.html, _site/different/item2/index.html
+
+# for size: 2
+# output: _site/different/item1/index.html, _site/different/item3/index.html
 ```
 
-=> `size: 1`: `_site/different/item1/index.html`, `_site/different/item2/index.html`, ...
-=> `size: 2`: `_site/different/item1/index.html`, `_site/different/item3/index.html`.
+An example of `fullData`:
 
-JS frontmatter:
-
-```md
----js
-{
-  pagination: {
-    data: "testdata",
-    size: 2,
-    // `before` callback, modify, filter, change the pagination data in general
-    // NOTE: `before` run first, then `reverse: true`, then `filter:`
-    before: function(paginationData, fullData) {
-      // Template Functions
-      let slug = this.slugify(fullData.title)
-      return paginationData.map(item => `${slug}-${item} with a suffix.`)
+```
+fullData: {
+  huveco: {
+    siteUrl: 'https://huveco.com',
+    name: 'Huu Viet Manufacturing and Trading Company Limited (HUVECO)',
+    shortName: 'HUVECO',
+    emails: [ 'sales@huveco.com', 'huveco@gmail.com' ],
+    address: 'No 4, lane 10, group 80, Khuong Trung, Thanh Xuan, Hanoi, Vietnam.',
+    telephone: '(84-24) 3565 0861',
+    copyrightYears: '2007, 2025',
+    metaDesc: 'Vietnam bamboo lacquer bowl dish plate tray box vase silk bag handbag . Huu Viet manufacturing and trading company Ltd ( HUVECO ) is one of the leading Vietnamese handicraft manufacturer in manufacturing and exporting handmade home and garden furniture, decorative products. We are also specialized in manufacturing unique and special embroidery and household textile, handbags, souvenirs, gifts and crafts, holiday gift and decoration',
+    metaKeywords: 'Vietnam bamboo lacquer bowl dish plate tray box vase silk bag handbag . Huu Viet Manufacturing and Trading Company Ltd , Huveco , Vietnam handicrafts , Vietnam bamboo bowl , bamboo bowls , bamboo dish , bamboo dishes , bamboo plate , bamboo plates , bamboo tray , bamboo trays , bamboo box , bamboo boxes , bamboo vase , bamboo vases , bamboo pot , bamboo pots , Vietnam lacquer bowl , lacquer bowls , lacquer dish , lacquer dishes , lacquer plate , lacquer plates , lacquer tray , lacquer trays , lacquer box , lacquer boxes , lacquer vase , lacquer vases , lacquer pot , lacquer pots , Vietnam bamboo handbag , bamboo handbags , seagrass handbag , sea grass handbag , seagrass handbags , rattan handbag , rattan handbags , silk handbag , silk handbags , suede handbags , canvas handbag , canvas handbags , purse , purses , wallet , wallets , wooden jewelry & gift boxes',
+    socialImage: '/images/templates/huveco.png'
+  },
+  helpers: { readMarkdownFiles: [AsyncFunction: readMarkdownFiles] },
+  eleventy: {
+    version: '3.1.2',
+    generator: 'Eleventy v3.1.2',
+    env: {
+      source: 'cli',
+      runMode: 'serve',
+      config: '/home/silverbullet069/LocalRepository/huveco-static/eleventy.config.mjs',
+      root: '/home/silverbullet069/LocalRepository/huveco-static'
+    },
+    directories: {
+      input: './src/',
+      inputFile: undefined,
+      inputGlob: undefined,
+      data: './src/_data/',
+      includes: './src/_includes/',
+      layouts: undefined,
+      output: './_site/'
     }
   },
-  testdata: [
-    "item1",
-    "item2",
-    "item3",
-    "item4"
-  ]
+  pkg: {
+    type: 'module',
+    devDependencies: {
+      '@11ty/eleventy': '^3.1.2',
+      '@11ty/gray-matter': '^2.0.0',
+      'decap-server': '^3.3.0',
+      nunjucks: '^3.2.4',
+      pagefind: '^1.3.0',
+      wrangler: '^4.26.0'
+    }
+  },
+  tags: [ 'products', 'Y8NmQEnKD6fIbDgTiaapC' ],
+  layout: 'layouts/product.html',
+  eleventyImport: { collections: [ 'all' ] },
+  permalink: '{{ page.filePathStem }}/{{ pagination.pageNumber + 1 }}.html',
+  pagination: {
+    data: 'collections',
+    size: 20,
+    alias: 'productList',
+    generatePageOnEmptyData: true,
+    addAllPagesToCollections: false,
+    before: [Function: before]
+  },
+  id: 'L-jRnKv2inVybDcbH67WC',
+  title: 'BC003',
+  description: 'Coiled and pressed bamboo vase.',
+  size: [ 'D30 x H50 cm' ],
+  date: '2006-11-05',
+  material: 'Spun bamboo',
+  image: '/images/products/BC003849514.jpg',
+  imageAlt: 'BC003849514.jpg',
+  trending: false,
+  new: false,
+  slideshow: true,
+  page: {
+    inputPath: './src/products/bc003.md',
+    fileSlug: 'bc003',
+    filePathStem: '/products/bc003',
+    outputFileExtension: 'html',
+    templateSyntax: 'njk,md',
+    date: 2006-11-05T00:00:00.000Z,
+    rawInput: ''
+  },
+  collections: {
+    channels: [
+      [Object], [Object],
+      [Object], [Object],
+      [Object], [Object],
+      [Object], [Object],
+      [Object], [Object]
+    ],
+    nav: [ [Object], [Object], [Object], [Object] ]
+  }
 }
----
 ```
 
 ---
@@ -854,50 +973,184 @@ pagination:
 </ol>
 ```
 
-### Collections (using `tags`)
+### Dates
 
-> [!IMPORTANT]
+<!-- TODO: finish this -->
+
+## [Supplied Data](https://www.11ty.dev/docs/data-eleventy-supplied/#page-variable-contents)
+
+A list of data keys that're either built-in or computed based on [special data keys](#special-data-keys). They can be referred to inside any Layout Template or Page.
+
+You can called them ""
+
+> [!TIP]
 >
-> There are two ways to create an 11ty collection: `tags` special data key and `addCollection()` API inside 11ty's configuration files.
+> The above keys are reserved keywords, don't create new data key with the same name
 
-A Collection groups content:
+There are **FIVE** major built-in Global Variables:
 
-- ONE piece content can be a port of MANY collections.
-- ONE collection can contain MANY piece of contents.
-- The collection are sorted ascending by default, use Nunjucks `... | reverse` filter
+1. [`pagination`](#pagination): divide data into chunks for multiple output pages.
+1. [`collections`](#collections): lists of all of your content, grouped by tags. Use dot notation (i.e. `collections.featuredWork`).
+1. `page`: has information about the current page
 
-`collections` object data structure:
+   - `page.url`: `false` if `permalink` set to `false`, else `/path/to/template/` (trailing slash!)
+   - `page.inputPath`: path to original source file for the template (e.g. `./path/to/template/file.md`)
+   - `page.fileSlug` : `inputPath` filename without file ext (e.g. `file`)
+   - `page.filePathStem`: `inputPath` without file ext (e.g. `/path/to/template`)
+   - `page.date`: JS Date() object, can be used to sort collections.
+   - `page.outputFileExtension`: use as suffix to `filePathSteam` for custom file extensions (e.g. `html`)
+   - `page.outputPath`: path to output file in output directory (e.g. `./_site/path/to/output/file.html`)
+   - `page.templateSyntax`: which type of files are processed (e.g. `liquid, md`)
+   - `page.rawInput`: the unparsed/unrendered plaintaxt content of current template (e.g. `<!DOCTYPE...`)
+   - `page.lang`: only needed with i18n plugin.
 
-```json
-{
-  "post": [], // array
-  "post-with-dash": [] // array
+1. `eleventy`: contains 11ty-specific data from env vars.
+
+   - `eleventy.version`: 11ty version
+   - `eleventy.generator`: for use with `<meta name="generator"`
+   - `eleventy.env`:
+     - `eleventy.env.root`: abs path to the dir in which you run 11ty CLI command
+     - `eleventy.env.config`: abs path to config files
+     - `eleventy.env.source`: either `cli` or `script`
+     - `eleventy.env.runMode`: either `build`, `serve` or `watch`.
+   - `eleventy.directories`: root-relative normalized path
+     - `eleventy.directories.input`: `./`
+     - `eleventy.directories.includes`: `./_includes/` (default)
+     - `eleventy.directories.data`: `./_data` (default)
+     - `eleventy.directories.output`: `./_site` (default)
+
+   ```json
+   {
+     "eleventy": {
+       "version": "3.1.2",
+       "generator": "Eleventy v3.1.2",
+       "env": {
+         "source": "cli",
+         "runMode": "serve",
+         "config": "/home/silverbullet069/LocalRepository/huveco-static/eleventy.config.mjs",
+         "root": "/home/silverbullet069/LocalRepository/huveco-static"
+       },
+       "directories": {
+         "input": "./src/",
+         "inputFile": "...",
+         "inputGlob": "...",
+         "data": "./src/_data/",
+         "includes": "./src/_includes/",
+         "layouts": "...",
+         "output": "./_site/"
+       }
+     }
+   }
+   ```
+
+1. `pkg`: the local project's `package.json` data.
+   - `pkg.name`
+   - `pkg.description`
+   - `pkg.version`
+   - `pkg.main`
+   - `pkg.scripts`
+   - `pkg.type`
+   - `pkg.keywords`
+   - `pkg.author`
+   - `pkg.license`
+   - `pkg.dependencies`
+   - `pkg.devDependencies`
+
+## Collections
+
+### [Using Configuration API `addCollection()`](https://www.11ty.dev/docs/collections-api/)
+
+This is the most dynamic method to create collections:
+
+```js
+export default function (eleventyConfig) {
+  // sync
+  // local data
+  // no I/O
+  // build speed is critical
+
+  // CAUTION: non-deterministic order of execution
+  // async-friendly
+  eleventyConfig.addCollection("myCollectionName", async (collectionsApi) => {
+    // get unsorted items
+    return collectionsApi.getAll();
+  });
+
+  // remote API calls
+  eleventyConfig.addCollection("externalProducts", async (collectionsApi) => {
+    const response = await fetch("https://api.example.com/products");
+    const products = await response.json();
+    return products; // add sort() or filter() for further modification
+  });
+
+  // database queries
+  eleventyConfig.addCollection("dbProducts", async (collectionsApi) => {
+    const db = await connect("insert connection string...");
+    const products = await db.query("SELECT * FROM products;");
+    await db.close();
+    return products;
+  });
+
+  // file system operations...
+  // image processing...
 }
 ```
 
-Each property inside `collections` is an array.
+### Using `tags`
 
-Each `item` in `collections.post` has the following data structure:
+- A single Page can belong to multiple collections by specifying multiple `tags` values.
+  - As the data cascades, `tags` are combined into an array. Therefore, any operations regarding `tags:` must viewed as an indexed array.
+- A single Collection can holds many Pages.
+- By default, Collections are sorted ascending by default, apply Nunjucks `{{ foo | reverse }}` filter to avoid in-array modification.
+
+---
+
+The data structure of `collections:` built-in variable:
+
+```json
+//
+{
+  "post": [], // array
+  "post-with-dash": [] // array
+  // ...
+}
+```
+
+Each property inside `collections:` object is an array. Each item inside a `collections.<property>` has the following data structure:
 
 ```json
 {
-  // backward compatibility: any property inside "page" are available
-  // outside `page`, e.g. item.url, item.fileSlug, item.outputPath, ...
-  // recommonded to use page.*
+  // NOTE: You can omit `page.` dot notation due to backward compatibility
+  // NOTE: However, it's recommonded to use page.* for better readability
+
+  // Everything inside `page` built-in global variables
   "page": {
-    "inputPath": "./test.md"
-    // ...
-    // everything inside `page` built-in global variables
+    "url": "/current/page/test/", // false if "permalink" set to `false`. Can be appended with `index.html`
+    "inputPath": "./src/current/page/test.md", // include input directory path (i.e. `src`)
+    "fileSlug": "test", // basename of "inputPath", extensionless.
+    "filePathStem": "/current/page/test", // "inputPath", extensionless
+    "date": "new Date()", // JS Date obj, used to sort Collections
+    "outputFileExtension": "html", // custom extension for output file, useful for "filePathStem"
+    "outputPath": "./_site/path/to/output/file.html", // path to output file in output directory
+    "templateSyntax": "liquid, md, html", // >=v2.0, which type of files are processed
+    "rawInput": "!<doctype html>", // unparsed/unrendered content of current Page
+    "lang": "" // only needed with i18n plugin.
   },
   "data": {
     "title": "",
-    "tags": []
+    "tags": [],
+    "permalink": ""
     // ...
     // all data that can be accessed inside this piece of content
   },
-  // alias to "templateContent"
-  "content": "Template body, processed, no frontmatter",
-  "rawInput": "Template body, unprocessed, no frontmatter"
+
+  // NOTE: avoid wrapping "templateContent" (or "content") within non-container HTML
+  // elements (i.e. not `div`, `span`) because it has already compiled and included
+  // HTML elements (which we don't know to know) as appropriate
+  "content": "Markdown body, escaped",
+  "templateContent": "Markdown body, escaped", // alias for "content", backward-compatibility
+
+  "rawInput": "Markdown body, unescaped"
 }
 ```
 
@@ -978,45 +1231,210 @@ permalink: "/tags/{{ tag | slugify }}"w
 
 Each Page introduce a new tag results in a new pagination page being created: `_dist/tags/new-tag/index.html`. This design allows tag to be decentralized and don't have to be maintained manually.
 
-### Dates
+## [Events](https://www.11ty.dev/docs/events)
 
-<!-- TODO: finish this -->
+11ty supports the ability to run a JS function before/after the building process:
 
-## [Supplied Data](https://www.11ty.dev/docs/data-eleventy-supplied/#page-variable-contents)
+```js
+// export function config(eleventyConfig) { ... }
+// this is a named export that helps to know where should `directories` be injected
+// since there might be more than 1 config is exported
+export default function (eleventyConfig) {
+  eleventyConfig.on(
+    "eleventy.before",
+    async ({ directories, runMode, outputMode }) => {
+      const { input, inputFile, inputGlob, data, includes, layouts, output } =
+        directories;
 
-A list of data keys that're either built-in or computed based on [special data keys](#special-data-keys). Can be referred to in any Layout Template or Page.
+      // outputMode: a string represents `--to` value
+      // valid values: "fs" (default), "json", "ndjson"
 
-> [!TIP]
->
-> The above keys are reserved keywords, don't create new data key with the same name
+      // runMode: a string represents `--serve` or `--watch` on CLI
+      // valid values: "build" (default), "watch", "serve"
+    }
+  );
 
-- `pkg`: the local project's `package.json` data.
-- `pagination`: divide data into chunks for multiple output pages.
-- `collections`: lists of all of your content, grouped by tags. Use dot notation (i.e. `collections.featuredWork`).
-- `page`: has information about the current page
-  - `url`: `false` if `permalink` set to `false`, else `/path/to/template/` (trailing slash!)
-  - `inputPath`: path to original source file for the template (e.g. `./path/to/template/file.md`)
-  - `fileSlug` : `inputPath` filename without file ext (e.g. `file`)
-  - `filePathStem`: `inputPath` without file ext (e.g. `/path/to/template`)
-  - `date`: JS Date() object, can be used to sort collections.
-  - `outputFileExtension`: use as suffix to `filePathSteam` for custom file extensions (e.g. `html`)
-  - `outputPath`: path to output file in output directory (e.g. `./_site/path/to/output/file.html`)
-  - `templateSyntax`: which type of files are processed (e.g. `liquid, md`)
-  - `rawInput`: the unparsed/unrendered plaintaxt content of current template (e.g. `<!DOCTYPE...`)
-  - `lang`: only needed with i18n plugin.
-- `eleventy`: contains 11ty-specific data from env vars.
-  - `version`: 11ty version
-  - `generator`: for use with `<meta name="generator"`
-  - `env`:
-    - `root`: abs path to the dir in which you run 11ty CLI command
-    - `config`: abs path to config files
-    - `source`: either `cli` or `script`
-    - `runMode`: either `build`, `serve` or `watch`.
-  - `directories`: root-relative normalized path
-    - `input`: `./`
-    - `includes`: `./_includes/` (default)
-    - `data`: `./_data` (default)
-    - `output`: `./_site` (default)
+  eleventyConfig.on(
+    "eleventy.after",
+    async ({ directories, results, runMode, outputMode }) => {
+      // directories, runMode, outputMode structure is the same as the one being injected in `eleventy.before`
+      //
+      // results: an array with processed 11ty output
+      // each element has the following structure: { inputPath, outputPath, url, content }
+    }
+  );
+
+  // eleventyConfig.on("eleventy.beforeConfig", () => {})
+  // eleventyConfig.on("eleventy.beforeWatch", () => {})
+  // eleventyConfig.on("contentMap", () => {})
+
+  // by default, event callbacks are triggered in parallel
+  eleventyConfig.setEventEmitterMode("sequential");
+}
+```
+
+## [Filters](https://www.11ty.dev/docs/filters)
+
+11ty has a set of [Built-in Universal Filters](https://www.11ty.dev/docs/filters/#eleventy-provided-filters)
+
+- `| url`: normalize absolute path in content, allow changing deploy subdir
+- `| slugify` (or `| slug`): change all non-alphanumeric to hyphen. V3 introduced memoization.
+- `| log` : run `console.log`
+- `| getNextCollectionItem` : get next collection item
+- `| getPreviousCollectionItem` : get previous collection item
+- `| inputPathToUrl` : map a template input path to output URL. V3 introduced memoization.
+- `| renderTransforms` : ...
+
+You can create custom filter using Configuration API:
+
+```js
+export default function (eleventyConfig) {
+  // CAUTION: make sure you're NOT USING ARROW FUNCTION HERE
+  // CAUTION: `this` keyword will create unexpected behavior
+  eleventyConfig.addFilter("filterName", function (value) {
+    // this.page
+    // this.eleventy
+    // this.env
+    // this.ctx
+  });
+  eleventyConfig.addAsyncFilter("asyncFilterName", function (value, callback) {
+    // only works for 3 template engines:
+    // - Liquid
+    // - Nunjucks
+    // - JavaScript
+  });
+
+  // Memoization supported
+  // NOTE: remember install a memoization library, e.g. `lodash.memoize`
+  eleventyConfig.addFilter(
+    "memoizedFilterName",
+    memoize((value) => {})
+  );
+
+  // Limited filters to per template engine
+  // NOTE: check for built-in filters before creating your own
+  eleventyConfig.addLiquidFilter("syncLiquidFilter", function (value) {});
+  eleventyConfig.addLiquidFilter(
+    "asyncLiquidFilter",
+    async function (value) {}
+  );
+
+  eleventyConfig.addNunjucksFilter("syncNunjucksFilter", function (value) {});
+  eleventyConfig.addNunjucksFilter(
+    "asyncNunjucksFilter",
+    async function (value) {}
+  );
+  // direct async method
+  eleventyConfig.addNunjucksAsyncFilter(
+    "asyncNunjucksFilter2",
+    function (value1, value2, callback) {
+      setTimeout(function () {
+        // 1st param: error obj
+        // 2nd param: result data
+        callback(null, "My Result");
+        // syntax: {{ myValue1 | asyncNunjucksFilter2(myValue2) }}
+      }, 100);
+    }
+  );
+
+  eleventyConfig.addJavaScriptFunction(
+    "asyncJSFilter",
+    async function (value) {}
+  );
+}
+```
+
+## [Shortcodes](https://www.11ty.dev/docs/shortcodes/)
+
+It's a way of writing reusable components using JavaScript. It retures a JS string or template literal.
+
+```js
+export default function (eleventyConfig) {
+  // Shortcodes are available in:
+  // - Markdown
+  // - Liquid
+  // - Nunjucks
+  // - JS
+
+  // sync
+  // NOTE: Again, make sure you're not using arrow function
+  eleventyConfig.addShortcode("user", function (firstname, lastName) {
+    // this.page
+    // this.eleventy
+    // this.env
+    // this.ctx
+  });
+
+  // memoization supported
+  eleventyConfig.addShortcode(
+    "user",
+    memoize((firstname, lastName) => {
+      // ...
+    })
+  );
+
+  // async, version >=2.0.0
+  eleventyConfig.addShortcode("user", async function (firstName, lastName) {});
+
+  // direct async
+  eleventyConfig.addAsyncShortcode(
+    "user",
+    async function (firstName, lastName) {}
+  );
+
+  // per-engine shortcodes
+  // nunjucks
+  eleventyConfig.addNunjucksShortcode(
+    "user",
+    function (firstname, lastName) {}
+  );
+  eleventyConfig.addPairedNunjucksShortcode(
+    "user",
+    function (content, firstname, lastName) {}
+  );
+  eleventyConfig.addNunjucksAsyncShortcode(
+    "user",
+    async function (firstname, lastName) {}
+  );
+  eleventyConfig.addPairedNunjucksAsyncShortcode(
+    "user",
+    async function (content, firstname, lastName) {}
+  );
+}
+```
+
+---
+
+**Paired Shortcodes - introduce start and end tag and Nested Content:**
+
+```njk
+{% user firstName, lastName %}
+  Hello {{ name }}
+  Hello {% anotherShortcode %}
+{% enduser %}
+```
+
+```js
+export default function (eleventyConfig) {
+  // sync
+  eleventyConfig.addPairedShortcode(
+    "user",
+    function (content, firstname, lastName) {}
+  );
+
+  // async, version>=2.0.0
+  eleventyConfig.addPairedShortcode(
+    "user",
+    async function (content, firstName, lastName) {}
+  );
+
+  // async method
+  eleventyConfig.addPairedAsyncShortcode(
+    "user",
+    async function (content, firstName, lastName) {}
+  );
+}
+```
 
 ## Plugins
 

@@ -1,9 +1,12 @@
 __pycache__
 .venv
-.env
+node_modules
+.env*
 .logs
-tils.db
 .tmp
+tmp
+.temp
+temp
 .memory-bank
-
 *.d2
+tils.db

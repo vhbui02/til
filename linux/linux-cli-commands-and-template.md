@@ -6,6 +6,18 @@ There are a lot of useful CLI commands and templates that I would like to archiv
 
 <!-- tl;dr ends -->
 
+## Extract the Top Ten Largest Directories by Scanning from Root
+
+```sh
+sudo du -h --exclude=/mnt / 2>/dev/null | sort -hr | head -10
+sudo du -sh ~/.local/share/docker
+mv docker docker.bak
+sudo btrfs subvolume create $PWD/docker
+sudo cp -a docker.bak/. docker/
+
+# do the same with large directory
+```
+
 ## Use both Parameter Expansion `${}` and Double Quotes `""`
 
 ### Parameter expansion `${}`

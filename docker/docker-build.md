@@ -6,26 +6,61 @@ What are the best practices to build a Docker image?
 
 <!-- tl;dr ends -->
 
-## List of my accumulated best practices
+## TL;DR
 
-- **Compatibility:** Code must run reliably within system under all circumstances. Alpine-based image is very different from Debian-based image and is more error-prone.
-- **Security-first**:
-  - Always use base images from trusted source: Docker Official Images, Docker Verified Publisher and Docker-Sponsored Open Source.
-  - Create a new user with minimal privilege to run the program.
-- **Lightweight**: Production image must be minimal.
-- **Performant:** Process manager tools such as `pm2` can run NodeJS application much faster.
-- **Single Responsibility**: ONE production image == ONE application.
-- Some tool is more optimized when a specific environment variable is set to `production` (e.g. `NODE_ENV` in [Express](https://expressjs.com/en/advanced/best-practice-performance.html#set-node_env-to-production))
-- **Deterministic base images**:
-  - Avoid using `:latest` tag for production base image. It creates inconsistency and non-deterministic between code and system subsequent builds.
-  - Avoid using `:alpine` variants. Beside its small digital footprint, its behavior is quite unpredictable.
-    => Some popular Docker image provides `:slim` tag variants.
-  - Some are based on full-fledged OSes with full of unnecessary libraries and tools. More digital footprint = More attack vector + More space occupied = More time to download things = More time to build image overall.
-  - Use Docker image ingest to achieve the most deterministic build. However, it could be confusing or counterproductive for some image static scanning tools who might not know how to interpret this image. E.g. Tag + SHA256 `FROM node:22.14.0-bookworm-slim@sha256:1c18d9ab3af4585870b92e4dbc5cac5a0dc77dd13df1a5905cea89fc720eb05b`
-- **Deterministic system dependency**: package for system should be pinned (e.g. `RUN apt-get update && apt-get install -y curl=7.68.0-1ubuntu2.12`)
-- **Deterministic build artifacts:** use lock files (NPM `package-lock.json`, Yarn `yarn.lock`, PIP `requirements-lock.txt`, ...) when create build image.
-- **Flexibility:** Using `:latest` is not a bad practice for slim base images that are tightly controlled, revied thoroughly and therefore unlikely to cause inconsistent behavior.
-  However, there are only some image families matches the description: [Alpine](https://hub.docker.com/_/alpine), [Scratch](https://hub.docker.com/_/scratch) and [Distroless](https://github.com/GoogleContainerTools/distroless)
+1. **Debian-based over Alpine-based images:**
+
+Code must run reliably within system under all circumstances. Alpine Linux uses `musl libc` and `BusyBox`, instead of `glibc` and `coreutils`, which are used in Debian.
+
+- Some binaries expect `glibc` and may not work with `musl`
+- Alpine tools/libs can behave different from their Debian variants.
+- BusyBox's `sh` is less feature-rich than Bash, which can break scripts.
+
+Lightweight is good, but reliable is even better.
+
+2. **Pull base images from trusted sources**:
+
+Always use base images from THREE trusted sources:
+
+- Docker Official Images
+- Docker Verified Publisher
+- Docker-Sponsored Open Source.
+
+3. **Principle of Least Privileges**:
+
+Check the base images if an unprivileged user is already created. If not, a new user with minimal privilege to run the program.
+
+4. **Lightweight**
+
+Production image must be minimal, but **has to be reliable** (re-read 1st practice)
+
+5. **Production-wise:**
+
+Use process manager tools. E.g. `pm2` is widely used to deploy NodeJS applications for its ability to automatically restart NodeJS server, run multiple instances to utilize multi-core CPUs, monitoring resource usage and errors, zero downtime reload and easy startup scripts running after server reboots.
+
+Express can be more optimized when a specific environment variable is set to `production` (e.g. `NODE_ENV` in [Express](https://expressjs.com/en/advanced/best-practice-performance.html#set-node_env-to-production))
+
+6. **Single Responsibility:**
+
+ONE application === ONE production image.
+
+7. **Deterministic base images**:
+
+- In general, avoid using `:latest` tag for production base image. However, `:latest` can be used if the base image is slim, tightly controlled, reviewed thoroughly and unlikely to cause inconsistent behavior.
+
+However, there are only a few handful of images that matches the description: [Alpine](https://hub.docker.com/_/alpine), [Scratch](https://hub.docker.com/_/scratch) and [Distroless](https://github.com/GoogleContainerTools/distroless)
+
+- Avoid using `:alpine` variants. Beside its small digital footprint, its behavior is quite unpredictable.
+- Some popular base Docker images `:latest` variants is based on full-fledged OSes with full of unnecessary libraries and tools. More digital footprint = More attack vector + More space occupied = More time to download things = More time to build image overall. Most popular base images provide `:slim` tag variants which reduces image size by cutting down non-essential OS tools.
+- Use Docker image ingest to achieve the most deterministic build. However, it could be confusing or counterproductive for some image static scanning tools who might not know how to interpret this image. E.g. Tag + SHA256 `FROM node:22.14.0-bookworm-slim@sha256:1c18d9ab3af4585870b92e4dbc5cac5a0dc77dd13df1a5905cea89fc720eb05b`
+
+8. **Deterministic system dependency**
+
+Package for system should be pinned (e.g. `RUN apt-get update && apt-get install -y curl=7.68.0-1ubuntu2.12`)
+
+9. **Deterministic build artifacts:**
+
+Use lock files (e.g. NPM `package-lock.json`, Yarn `yarn.lock`, Bun `bun.lock`, PIP `requirements-lock.txt`, ...) when create build image.
 
 ## Cheatsheet
 
@@ -40,8 +75,6 @@ Dockerfile
 build         # build artifacts
 node_modules  # vendor directories for package managers
 ```
-
----
 
 ### Use Docker as a sandbox to run a NodeJS CLI
 
@@ -58,9 +91,7 @@ EXPOSE 3000
 CMD ["node", "server.js"]
 ```
 
----
-
-### Containerize a NodeJS application
+### NodeJS
 
 [From Liran Tal, Yoni Goldberg, 10 best practices to containerize NodeJS web application with Docker](https://snyk.io/blog/10-best-practices-to-containerize-nodejs-web-applications-with-docker/)
 
@@ -87,8 +118,6 @@ CMD ["node", "server.js"]
 # Build the production image with the following command:
 # docker build . -t production:latest --secret id=npmrc,src=.npmrc
 ```
-
----
 
 [From abstractvector's Lightweight node.js Dockerfile "](https://gist.github.com/abstractvector/ed3f892ec0114e28b3d6dcdc4c39b1f2)
 
@@ -219,7 +248,7 @@ CMD ["pm2-runtime", "start", "dist/server"]
 
 ---
 
-### Containerize a Python application
+### Python
 
 [Liran Tal, Daniel Campos Olivares, Snyk Blog "Best practices for containerizing Python applications with Docker"](https://snyk.io/blog/best-practices-containerizing-python-docker/)
 
@@ -235,7 +264,7 @@ def health():
 # ============================================================================ #
 # Stage 1: Build
 # ============================================================================ #
-FROM python:3.13-slim-bookworm as build
+FROM python:3-slim as build
 RUN apt-get update && \
   apt-get install -y --no-install-recommends build-essential gcc && \
   rm -rf /var/lib/apt/lists/*
@@ -264,7 +293,7 @@ CMD ["gunicorn", "--bind", "0.0.0.0:5000"]
 
 ---
 
-### Containerize a Golang application
+### Golang
 
 ```Dockerfile
 # ============================================================================ #

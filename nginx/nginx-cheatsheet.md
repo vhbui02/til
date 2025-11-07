@@ -2,79 +2,46 @@
 
 <!-- tl;dr starts -->
 
-My favorite [open-source](https://github.com/nginx/nginx) HTTP web server, reverse proxy (load balancer), content cache, TCP/UDP proxy server and mail proxy server.
+My favorite [free and open source](https://github.com/nginx/nginx) HTTP web server, reverse proxy (a.k.a load balancer) with cache, TCP/UDP proxy server, mail proxy server. It's primarily used to serve static content, and connect with FastCGI applications (or Python's WSGI, ASGI, Java's Servlets, Ruby's Rack...) to serve dynamic content.
 
 <!-- tl;dr ends -->
 
-## The differences between TCP Proxy vs HTTP Proxy vs SOCKS5 Proxy
+## CLI
 
-| Topic | TCP Proxy | HTTP Proxy | SOCKS5 Proxy |
-| --- | --- | --- | --- |
-| OSI Layer | Layer 4 (Transport layer) | Layer 7 (Application Layer) [^1] | Layer 5 (Session Layer) |
-| Description | Forward raw TCP packets between a client and a destination server.<br/>It doesn't understand Layer 7 protocol (HTTP, FTP, SMTP, SSH, ...) | Understands HTTP protocol, interpret HTTP Request and HTTP Response to fulfill operations | Routes network packets between a client and a destination server. The latest version, SOCKS5, support authentication, UDP, IPv6 |
-| Use Cases | - Basic, fast load balancing for TCP-based applications<br/>- Port forwarding<br/>- Bypass IP-based firewalls<br/>- Hiding the origin server's IP address from the client (and vice-versa)<br/>- Lower overhead than higher-level proxy (HTTP, SOCKS5, ...) if no DPI is involved | - Web caching<br/>- Content filtering (block access to APIs based on client's metadata)<br/>- Anonymity (hide the client's IP address from the destination server)<br/>- Access control and logging<br/>- Modify HTTP headers. | - Bypass firewall<br/>- Routing TCP/UDP traffic for any Layer 7 protocol.<br/>- Enhanced anonymity (DNS resolution by proxy) |
-| Cons | No application-level awareness | Introduce more latency than a TCP proxy, due to parsing and processing application-layer data | Client app must support SOCKS protocol + introduce overhead due to the negotiation. |
+```sh
+# send signal to master process
+# start new worker process with new config + gracefully shutdown old worker processes
+nginx -s reload
+nginx -s stop # shutdown quickly
+nginx -s quit # shutdown gracefully
+# NOTE: The user who starts the Nginx process must also be the one to stop it.
 
----
+# Read nginx process ID
+cat /usr/local/nginx/logs/nginx.pid
+cat /var/run/nginx.pid
+ps aux | grep nginx
 
-**TCP Proxy:**
-1. Client ===TCP connection==> Proxy
-2. Proxy ===TCP connection==> Dest
-3. Client <==TCP segments==> Proxy <==TCP segments==> Dest
+kill -s QUIT $PROCESS_ID
 
----
+# test config file
+nginx -t
 
-**HTTP Proxy:**
-1. Client ===HTTP Request==> Proxy
-2. Proxy parses the HTTP Request, modify it, check against filtering rules, or return cached, ...
-3. No cache? Modified? Proxy ===new HTTP Request==> Dest.
-4. Dest ===HTTP Response==> Proxy
-5. Proxy ===HTTP Response (cached, modified)==> Client
+# test + dump config file to stdout
+nginx -T
+```
 
-For "HTTPS" Proxy:
-1. Client ===HTTP Request with command HTTP CONNECT ==> Proxy
-2. Proxy ===TCP tunnel=== Dest.
-3. Client ===SSL handshake==>Dest
+## Configuration File
 
-Proxy won't be able to intercept HTTP Requests from clients anymore, unless it uses SSL termination:
-- Clients install a certificate issued by the Proxy
-- Proxy terminate SSL, inspect the content, modify, ... then finally re-encrypt and send to Dest.
+Conventional locations:
 
-However, this break E2E encryption model. Clients will see Proxy's certificate instead of Destination server's certificate.
+- `/usr/local/nginx/conf`
+- `/etc/nginx`
+- `/usr/local/etc/nginx`
 
----
-
-**SOCKS5 Proxy:**
-1. Client app (SOCKS-aware) connects to Proxy.
-2. Client negotiates an auth method with proxy (none, password-based, ...)
-3. After auth, Client specify command (CONNECT for TCP, UDP ASSOCIATE for UDP), Destination server's IP address + port.
-4. Proxy ===TCP connection/UDP relay==> Dest
-5. Proxy relay traffic between Client and Dest.
-
-- Proxy won't be able to interpret the application data being transmitted.
-- Proxy can perform DNS resolution on proxy side, which hides client's IP and DNS. Dest can only see proxy's IP.
-
-[^1]: [What is layer 7 of the Internet?](https://www.cloudflare.com/learning/ddos/what-is-layer-7/)
-[^2]: 
-
-## The differences between Reverse Proxy vs Forward Proxy
-
-<!-- prettier-ignore -->
-| Topic | Forward Proxy | Reverse Proxy |
-| --- | --- | --- |
-| Connection | Connect private to public IP space | Connect public to private IP space |
-| Security | Trust the client | Trust the server |
-
-
-
-## Nginx Configuration File syntax
-
-```ini
-# ============================== MAIN CONTEXT =============================== #
-
+```conf
 # feature-specific configuration files
-# stored in /etc/nginx/conf.d
-include conf.d/http;
+# located in /etc/nginx/conf.d
+include conf.d/http;    # NOTE: this is called "simple directive"
 include conf.d/stream;
 include conf.d/exchange-enhanced;
 
@@ -86,11 +53,11 @@ worker_processes  auto;
 error_log  /var/log/nginx/error.log notice;
 pid        /run/nginx.pid;
 
-# block directive
-# Top-level directive "events"
+# "events" context, a.k.a top-level directive, reside in "main context"
 # define general connection processing
-events {
-    # Connection types: 
+events { # NOTE: this is called "block directive".
+
+    # Connection types:
     # - Client-to-Nginx connections
     # - Internal connections (within the Nginx edge)
     # - Nginx-to-backend services upstream connections to.
@@ -101,16 +68,17 @@ events {
     # - very high traffic = >16384/process
 
     # Total theoretical capacity = # of Worker process * 1024
-    # NOTE: OS may limit # of file descriptors available, prevent you fron reaching this theoretical capacity.
+    # OS may limit # of file descriptors available, prevent reaching the theoretical capacity.
 
-    # each Nginx Worker process can handle <= 1024 concurrent connections at the same time
+    # ONE Nginx Worker process can handle less than or equal to 1024 concurrent connections.
     worker_connections  1024;
 }
 
-# Top-level directive "http"
+# "http", a.k.a top-level directive, reside in "main context"
 # define HTTP traffic to multiple virtual servers
 http {
-    # directives in the `http` context go here
+    # NOTE: 'server' directive is defined inside 'http' context
+
     include       /etc/nginx/mime.types;
     default_type  application/octet-stream;
 
@@ -123,35 +91,34 @@ http {
     sendfile        on;
     #tcp_nopush     on;
 
-    # NOTE: the same setting on the server calling Nginx must have the same value 
-    # (e.g. AWS CloudFront)
+    # the server behind Nginx must have same value
     keepalive_timeout  65;
 
-    # include block directives (e.g. server block) inside this http block directive
-    #include /etc/nginx/conf.d/*.conf;
+    # best practice is to move 'server' directive into separate file
+    include /etc/nginx/conf.d/*.conf;
 
-    # `server` blocks are diffrent by ports and server names
-    # NOTE: two virtual servers can't listen on the same port
-    # nginx use them to determine which server processes a request
+    # `server` blocks are diffrentiated by ports and server names
+    # Two virtual servers can't listen on the same port
+    # nginx use `server` to determine which server processes a request
     # nginx tests the URI specified in request's header
-    # against the parameters of the `location` directives defined in `server` block
+    # against the parameters of the `location` directives, which defined in `server` block
     server {
-        listen       80;
-        listen  [::]:80;
+        listen              80;
+        listen         [::]:80;
         server_name  localhost;
 
         #access_log  /var/log/nginx/host.access.log  main;
 
-        # prefix match syntax
+        # 1. prefix match
         location / {
             root    /usr/share/nginx/html;
             index   index.html index.htm;
         }
 
-        # create internal redirect
+        # create internal redirect, `location` directive can refer to it by adding `internal` simple directive
         error_page 404 /custom_404.html;
 
-        # exact match syntax
+        # 2. exact match
         location = /custom_404.html {
 
             # NOTE: usually `root` directive is ignored in the location block
@@ -160,7 +127,7 @@ http {
             root /usr/share/nginx/html;
 
             # ensures custom 404 page must be accessed through internal redirects
-            # e.g. via error_page directive, not direct external requests
+            # e.g. via `error_page` directive, not direct external requests
             internal;
         }
 
@@ -221,6 +188,17 @@ http {
         #}
     }
 
+    server {
+        # if the request can't match a single `server` and `location:` in other `server` directive, it goes into this directive
+        listen 80 default_server;
+
+        # nothing
+        server_name _;
+
+        # nuke
+        return 444;
+    }
+
     # ========================================================================= #
     # Gzip Compression                                                          #
     # ========================================================================= #
@@ -264,7 +242,7 @@ http {
     # ========================================================================= #
     # Example #1: HTTP Forward Proxy to Telegram server                         #
     # ========================================================================= #
-    
+
     # Client will be AWS CloudFront
 
     server {
@@ -274,7 +252,7 @@ http {
 
         location /telegram {
             # gzip on;  # most are *.ts and *.vtt files
-            
+
             # Forward request to Telegram API
             # Terminate the original request and create a new request
             # URL tranformation: http://iamhung.top/telegram/bot<token>/sendDocument
@@ -334,7 +312,7 @@ server {
     location / {
         index   index.html index.php;
     }
-    
+
     location ~* \.(gif|jpg|png)$ {
         # set cache headers telling browsers and intermediate caches to store these images for 30 days
         # improve website performance by reducing server requests for static assets
@@ -392,7 +370,7 @@ server {
         # when the request pass through Nginx proxy server, it changes the "Host" header to match the upstream server's address, which is "localhost:8080"
         # upstream server receive request from Nginx proxy server will see "Host" set to "localhost:8080", not "example.com".
         # Therefore create breakage on some features
-        proxy_set_header Host $http_host;   # 
+        proxy_set_header Host $http_host;   #
 
         # When nginx acts as a reverse proxy, upstream servers sometimes send HTTP redirect responses (301, 302, ...) the contain URLs pointing back to themselves
         # By default, nginx automatically rewrites these redirect URLs to match the client's perspective: that is to replace the upstream server's address with Nginx proxy server's address
@@ -455,7 +433,7 @@ server {
             local ok, err = red:connect("unix:/path/to/redis.sock");    -- UNIX domain socket
             -- local ok, err = red:connect("127.0.0.1", 6379);          -- IP address
             -- local ok, err = red:connect("redis.openresty.com", 6379);-- hostname, required resolver
-            
+
         }
     }
 }

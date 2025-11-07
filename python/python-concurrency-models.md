@@ -6,64 +6,85 @@ While trying to find the best way to maximize Apify free tier's resource utiliza
 
 <!-- tl;dr ends -->
 
-## TL;DR
+## Cheatsheet
 
-```d2
-vars: {
-  feature-font-size: 20
-}
+### Synchronous
 
-concurrency: "Python Concurrency Models" {
-  style: {
-    font-size: 32
-  }
-  asynchronous_io: "Asynchronous IO" {
-    features: |md
-      - IO-bound tasks.
-      - Single process, single-threaded.
-    | {
-      style: {
-        font-size: ${feature-font-size}
-      }
-    }
-  }
-  threading: "Threading" {
-    features: |md
-      - IO-bound tasks.
-      - Single process, multi-threaded.
-    | {
-      style: {
-        font-size: ${feature-font-size}
-      }
-    }
-  }
+- For synchronous WSGI server such as `uWSGI`, use workers/threads or background workers to off-load blocking operations. It requires carefully sizing thread pools and DB max conections, also more memory and CPU. Therefore it's considered inferior to proper async library with ASGI server.
 
-  parallelism: "Parallelism" {
-    multi_processing: "Multiprocessing" {
-      features: |md
-        - CPU-bound tasks.
-        - Multiple processes.
-      | {
-        style: {
-          font-size: ${feature-font-size}
-        }
-      }
-    }
-  }
-}
+- Implementing a Python thread pool and a DB connection pool can make your code error-prone, make your code more complex, have memory issues when scale. but it's the simpliest way to keep most of your synchronous stack intact. Beside, it's still bettern than using barebone synchronous operations.
 
-legend: |md
-  # Packages
-  - `multiprocessing`
-  - `threading`
-  - `concurrent.futures`
-  - `asyncio`
-|
+- Tweak the number of possible DB connections:
 
-legend.style: {
-  font-size: 24
+`processes * Python thread pool size (MySQL connection pool size - the number of DB connections to keep) <= max_connections`
+
+- Use `ThreadPoolExecutor` + MySQL queue-based connection pool so threads can re-use MySQL connection instead of a new one for every request. HOWEVER, this pattern is only for `SELECT` queries, since connections will be re-used, you don't know when it will be closed nor when to commit, to finish complete the transaction.
+
+```py
+app = Flask(__name__)
+
+DB_CONF = {
+  # host: ...
+  # user: ...
+  # password: ...
+  # db: ...
+  # cursorclass: ...
+  # autocommit: True, #
 }
 ```
+
+### Asynchronous
+
+- Flask version >=2 support async view functions, therefore can run async operations (run DB query, send HTTP request, read/write file inside filesystem, ...) with the support of native Python event loop integration by `asyncio`, under ASGI server (e.g. `uvicorn`, `hypercorn`, ...).
+
+- Asynchronous database operations on synchronous frameworks (e.g. Flask) required async driver (e.g. `aiomysql`/`asyncmy`).
+
+```py
+import asyncio
+import aiomysql
+from typing import Any
+
+# Constants
+DB_HOST = "127.0.0.1"
+DB_PORT = 3306
+DB_USER = "root"
+DB_PASSWORD = ""
+DB_NAME = "mysql"
+POOL_MIN_SIZE = 1
+POOL_MAX_SIZE = 5
+AUTOCOMMIT = False
+
+async def run_query() -> Any:
+    pool = await aiomysql.create_pool(
+        host=DB_HOST,
+        port=DB_PORT,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        db=DB_NAME,
+        minsize=POOL_MIN_SIZE,
+        maxsize=POOL_MAX_SIZE,
+        autocommit=AUTOCOMMIT,
+    )
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            try:
+                await cur.execute("SELECT 10")
+                result = await cur.fetchone()
+                await conn.commit()
+                return result
+            except Exception as exc:
+                await conn.rollback()
+                raise exc
+    pool.close()
+    await pool.wait_closed()
+
+if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
+    result = loop.run_until_complete(run_query())
+    print(result)
+```
+
+## Overview
 
 ![python concurrency model diagram](concurrency-model.svg)
 

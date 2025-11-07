@@ -2,188 +2,279 @@
 
 <!-- tl;dr starts -->
 
-Each VSCode monthly release introduces a lot of major breaking changes to AI features due to being under active development. The GitHub Copilot Chat extension is under active development as well. Everything is new, non-standardized and unstable. This is both a chance and a challenge to me. When LLMs and AI-powered platforms are new and not many people can effectively utilize them, I can get an upperhand before it becomes maturity and more people can fully grasp it.
+**IMPORTANT:** VSCode monthly releases introduce a lot of LLM major breaking changes. Everything is new, non-standardized and unstable. This is both a chance and a challenge to me.
 
 <!-- tl;dr ends -->
 
 ## [Cheatsheet](https://code.visualstudio.com/docs/copilot/reference/copilot-vscode-features#_chat-variables)
 
-- There are **THREE** chat UI: **Chat view**, **Quick Chat** and **Inline Chat**.
-- Switch mode using `Ctrl + .`.
-- `Show Chats` command can restore past sessions, even Edit/Agent sessions so you can keep working on them
-- It is recommended to use **Open Chat in New Window** since you can run multiple agents at once. However, it is best to keep at most one agent use read-write tools, while the rest use read-only tools.
+> [!TIP]
+>
+> For VSCode/VSCodium >=v1.103, `Chat View in New Window` doesn't allow you to choose LLM models for initial prompt.
+>
+> - Hit `Ctrl + Shift + P > Chat: Show Chats` to restore a past chat session.
+> - Prompt from there.
 
----
+1. **THREE** chat UI:
 
-Since company might banned the use of 3rd-party LLMs. Use self-hosted SLM with Bring Your Own Key (BYOK) feature.
+- **Quick Chat**: for quick learning, explanation.
+- **Inline Chat**: for quick code suggesting.
+- **Chat view**: for complex operations.
 
----
+2. [**FOUR** chat modes](https://code.visualstudio.com/docs/copilot/chat/chat-modes):
 
-There are multiple types of [Contexts](https://code.visualstudio.com/docs/copilot/chat/copilot-chat-context) (for now, maybe more in the future)
+- Three built-in: **Ask**, **Edit**, **Agent**.
+- One custom: **Custom**.
+
+Hit `Ctrl + .` to switch modes.
+
+3. [**FIVE** main ways to customize chat responses in VSCode/VSCodium](https://code.visualstudio.com/docs/copilot/customization/overview):
+
+- **Instructions files:** project-wide coding practices/standards/requirements, language/framework/tech stack-specific rules, commit message + PR/MR title/description guidelines, code review rules (security, performance, coding practices/standards again), ...
+
+  > Yet another prompt engineering practice.
+  >
+  > - Don't use coding guidelines to enforce style guidelines that can be covered by your linter or static analysis tool.
+  > - Don't use wording that is ambiguous or could be interpreted in different ways.
+  > - Don't fit multiple different ideas into a single coding guideline.
+  >
+  > Consider the size and complexity of the repository to do and don't do the following:
+  >
+  > - Refer to external resources.
+  > - Instructions to answer in a particular style.
+  > - Always respond with a certain level of detail.
+
+- **Prompt files:** scaffold new component, API route, unit test generation, code review rules (security, performance, coding practices/standards again), step-by-step/specialized workflow required implementation plans, architectural designs, migration strategies, ...
+
+  > Prompt file can be integrated with a chat mode.
+
+- **Custom Chat modes:** Planning mode with access to read-only tools (`codebase`, `fetch`, `search`, ...) to generate implementation plan, Research mode using networking tools, Front-end Developer mode with read-write access to front-end code ONLY, ...
+
+  ```md
+  # Planning mode instructions
+
+  You are in planning mode. Your task is to generate an implementation plan for a new feature or for refactoring existing code.
+  Don't make any code edits, just generate a plan.
+
+  The plan consists of a Markdown document that describes the implementation plan, including the following sections:
+
+  - Overview: A brief description of the feature or refactoring task.
+  - Requirements: A list of requirements for the feature or refactoring task.
+  - Implementation Steps: A detailed list of steps to implement the feature or refactoring task.
+  - Testing: A list of tests that need to be implemented to verify the feature or refactoring task.
+  ```
+
+- **Language models**: Base model for quick + cheap code suggestions, Premium model for complex operations.
+
+- **MCP + tools**: Integrate with external services to fetch latest docs (Context7), run database query and analyze data (Supabase), ...
+
+4. [Chat Contexts](https://code.visualstudio.com/docs/copilot/chat/copilot-chat-context)
 
 - `@chat-participant` or `@chat-participant /command`.
 - `#chat-variable`
 - `Open Editors`
 - `Files & Folders`
-- `Screenshot Window`
-- `Source Control` (add history item)
 - `Instructions`
+- `Screenshot Window`
+- `Source Control`: add history items of a specific commit in a specific branch.
 - `Problems`
 - `Symbol`
-- `Tools`
+- `Tools` (**NOTE:** max 128 tools)
+- ... more in the future
 
----
+5. [Chat variables](https://code.visualstudio.com/docs/copilot/reference/copilot-vscode-features#_chat-variables) are list of tools/tool sets, either from built-in, custom grouped or Extensions.
 
-[Chat variables](https://code.visualstudio.com/docs/copilot/reference/copilot-vscode-features#_chat-variables) are list of tools/tool sets, either from built-in, custom grouped or Extensions.
+Most common:
 
-Built-in:
+- `#foo.bar` or `#src/`: attach a file/directory as context. Sometimes a file/directory can't be found on auto-completion list, you can right-click the it on Folder View to add it manually.
+- `#<symbol>` + `#usages`: add symbol name + find definition and references of a symbol.
+- `#context7`, `#sequentialThinking`, `#insert-built-in-tool`, `#insert-custom-tool-set`, ... : run built-in/MCP tools.
+- `#selection`: attach a code snippet as context.
+- `#todos`: tools for manage and tracking to-do items (introduce in `v1.103`)
+- `#problems`: check errors for a specific file.
 
-- `#changes` (the list of source control changes)
-- `#codebase`
-- `#editFiles` (edit files directly)
-- `#extensions`
-- `#fetch` (fetch the main content of a web page whose URL is specified in any of the context)
-- `#<file:foo.bar>` or `#<file:dir>` (attach a file/directory as context)
-- `#findTestFiles` (given a code under test, output test file, and vice versa)
-- `#githubRepo` (code search for a GitHub repo, e.g. `what is variable reference in VSCode #githubRepo microsoft/vscode`)
-- `#new` (scaffold new VSCode workspace)
-- `#openSimpleBrowser` (open built-in browser, preview a locally-deployed web app)
-- `#problems` (add workspace problems)
-- `#runCommands` (running terminal commands)
-- `#search` (search and read files inside workspace)
-- `#searchResults` (add results from Search view a.k.a Find and Replace input field)
-- `#selection`
-- `#<symbol>` (add symbol name, require language servers)
-- `#terminalSelection`
-- `#terminalLastCommand`
-- `#testFailure` (add test failure info from VSCode's test feature)
-- `#usages` ("Find All References" + "Find Implementations" + "Go to Definition").
-- `#VSCodeAPI` (**NOTE:** ask questions releated to VSCode **extension development**)
-- `#<tool-set>` (a collection of related tools grouped together and toggleable in Agent mode).
+Searching:
 
-Python Extension:
+- `#search`: toolset
+  - `#fileSearch`: search for files in the workspace using glob pattern.
+  - `#textSearch`: search for texts via exact string or regex.
+  - `#listDirectory`: list the content of a directory.
+  - `#readFile`
+  - `#codebase`: include relevant file chunks, symbols, ... from your codebase. Very good if you don't know which specific part of code need to be included in your prompt
+  - `#searchResults`: add results from "Find and Replace" fields in Search .
 
-- `#configurePythonEnvironment` (ensure Python Environment is set up correctly for the workspace, create virtual env if needed and activate it)
-- `#getPythonEnvironmentInfo`
-- `#getPythonExecutableCommand`
-- `#installPythonPackage`
+Editing:
 
-MermaidChart Extension:
+- `#edit`: toolset
+  - `#createFile`
+  - `#createDirectory`
+  - `#editNotebook`
+  - `#newJupyterNotebook`
+  - `#editFiles`
 
-- `#get_syntax_docs`
-- `#mermaid-diagram-preview`
-- `#mermaid-diagram-validator`
+Version Control System:
 
----
+- `#changes`: get diff of change files in version control system
+- `#githubRepo`: search a GitHub repository for a relevent source code snippet, using `owner/repo` syntax. E.g. `what is variable reference in VSCode #githubRepo microsoft/vscode`
 
-**Chat participants** are like "expert" of a field, and this "expert" can perform a list of pre-defined actions.
+Networking:
 
-Run `/help` command to list all of the available Chat participants and their associating Chat commands.
+- `#fetch`: fetch the main content of a web page whose URL is specified in the prompt (context doesn't count).
+- `#openSimpleBrowser`: open built-in browser, preview local web app. **CAUTION: extermely unreliable and should not be used.**
 
-> Without knowing the design decisions, the Chat participants can be hard to have its purpose understood.
+Misc/Less common:
 
-```md
-`@workspace`
-`@workspace /explain`
-`@workspace /tests`
-`@workspace /fix`
-`@workspace /new` (scaffold a new file/project in a workspace)
-`@workspace /setupTests` (experimental)
+- `#new`: toolset, scaffold new VSCode workspace
+- `#runCommands`
+- `#runNotebooks`
+- `#applyPatch`
+- `#testFailure`: add VSCode's test failure info.
+- `#extensions`: search for VSCode extensions.
+- `#VSCodeAPI`: ask questions related to VSCode extension development.
+- Jupiter-related tools...
 
-`@github`
+6. **Chat participants:** "expert" of a field.
 
-`@vscode`
-`@vscode /search` (workspace search)
+> [!TIP]
+>
+> This feature is often neglected. There is too many things that developers need to include in their prompts.
 
-`@terminal`
-`@terminal /explain`
+- `@workspace`
+- `@workspace /explain`
+- `@workspace /fix`
+- `@workspace /tests`: generate unit tests for the selected code
+- `@workspace /setupTests`: setup tests in the whole project (CAUTION: highly experimental)
+- `@workspace /new`: scaffold a new file/project in a workspace.
+- `@github`: web search + code search related to GitHub.
+- `@vscode` + `@vscode /search`: workspace search.
+- `@terminal` + `@terminal /explain`.
 
-`@mermaid-chart`
-`@mermaid-chart /generate_cloud_architecture_diagram`
+## Notable features
 
-`/mcp.servername.promptname` (MCP prompts)
-```
+> [!CAUTION]
+>
+> Auto approval all tools is dangerous. Set `chat.tools.autoApprove` to `false`
 
----
-
-**THREE** main ways to [customize AI responses in VSCode](https://code.visualstudio.com/docs/copilot/copilot-customization): **instructions**, **prompts** and **custom chat modes**
-
----
-
-**THREE** built-in [chat modes](https://code.visualstudio.com/docs/copilot/chat/chat-modes): **Ask**, **Edit** and **Agent**. New VSCode features allow users to define their own [**custom chat modes**](https://code.visualstudio.com/docs/copilot/chat/chat-modes#_custom-chat-modes).
-
----
-
-**TWO** ways of using Copilot inside editor:
-
-- GitHub Copilot's Code Completions: Code comments, Next Edit Suggesion (NES).
-- GitHub Copilot Chat's Inline Chat: `Ctrl + I`.
-
----
-
-## VSCode's Chat features
-
-### Chat View in New Window UI
-
-- Always on Top
-- Toggle Compact mode
-- New Chat
-
-### Select and attach UI elements to chat
-
-Set to true the following settings:
-
-- `chat.sendElementsToChat.enabled`
-- `chat.sendElementsToChat.attachCSS`
-- `chat.sendElementsToChat.attachImages`
-
-### Create and launch tasks in Agent mode
-
-Set to true the following settings:
-
-- `github.copilot.chat.newWorkspaceCreation.enabled`
-
-### Chat tool sets
-
-Run `Configure Tool Sets > Create new tool sets file` command to create a tool set.
-
-Example: Manage GitHub notifications using GitHub MCP server
+- Resolve merge conflict with LLM
+- Add file commit to chat context (you will need to traverse the source control graph, right-click then select `Add to Chat`)
+- Tool sets: More MCP servers === more tools === harder to maintain reusable prompt file/custom chat modes. Create a general tool set
 
 ```jsonc
 {
-  "gh-news": {
+  {
+  "general": {
     "tools": [
-      "list_notifications",
-      "dismiss_notification",
-      "get_notification_details"
+      "changes",
+      "edit",
+      "fetch",
+      "githubRepo",
+      "new",
+      "openSimpleBrowser",
+      "problems",
+      "runCommands",
+      "runTasks",
+      "runTests",
+      "search",
+      "testFailure",
+      "think",
+      "todos",
+      "usages",
+      "context7",
+      "sequentialThinking"
     ],
-    "description": "Manage GitHub notification",
-    "icon": "github-project"
+    "description": "The base tool set for all chat modes",
+    "icon": "tools"
   }
+}
 }
 ```
 
 ### [MCP](https://code.visualstudio.com/docs/copilot/chat/mcp-servers)
 
-- Configuration: `"mcp"` section in user, remote `settings.json`, or `.code-workspace` settings, in `.vscode/mcp.json`.
-  - Reference an env var using `${env:API_KEY}`
-  - Prompt a value when server started `${input:ENDPOINT}`
-- Can be installed via `MCP: Add Server`. However, MCP server can run arbitrary code on host system, best to set up Docker container.
-- List MCP servers + status with `MCP: List Servers` command.
-- Pick the tools available for use in chat using `Select Tools` button.
-- Support Streamable HTTP and Stdin servers.
-- Prompt:
-  - MCP can implement the feature of generating prompt from prompt.
-  - Accessible as slash commands `/mcp.servername.promptname`.
-- Resources:
-  - MCP tool calls result in resources.
-  - Those resources can be saved in Chat.
-  - Resources can be attached as Context.
-  - List resources inside multiple MCP servers with `MCP: Browse Resources` command or one MCP server with `MCP: List Servers` command.
-- Sampling/Auth
--
+Allows LLM to discover and interact with external tools/functions call to perform specialized tasks in general.
 
-## VSCode Extension
+- Read/write/searching for files and directories.
+- List repositories, create PR, manage issues of a version control system.
+- Connect to database.
+- Invoke API.
+- ...
+
+Architecture: Client-Server
+
+- MCP clients, such as IDE/Code Editor, connect to MCP servers and request actions on behalf of the LLMs.
+- MCP servers, such as Context7, Sequential Thinking, ... provide one or more tools/function calls.
+- MCP itself, defines the message format for communication between clients and servers, these communcations can be tool discovery, invocation, response handling.
+
+MCP servers can be **self-hosted** via `npm run`/Docker and **hosted remotely**
+
+Trusted/Verified list of MCP servers:
+
+- [VSCode's curated list](https://code.visualstudio.com/mcp)
+- [DockerHub's mcp/ organization](https://hub.docker.com/u/mcp)
+- [Official server repository](https://github.com/modelcontextprotocol/servers)
+
+List of MCP servers that I've tried so far:
+
+- [Context7](https://hub.docker.com/r/mcp/context7)
+- [Sequential Thinking](https://hub.docker.com/r/mcp/sequentialthinking).
+
+List of MCP servers that I'll take a look:
+
+- [Figma MCP](https://help.figma.com/hc/en-us/articles/32132100833559-Guide-to-the-Figma-MCP-server)
+- [Playwright MCP](https://hub.docker.com/r/mcp/playwright)
+- [Sentry MCP](https://hub.docker.com/r/mcp/sentry)
+- [Serena](https://github.com/oraios/serena)
+
+Best way to run MCP server is inside containerized environment, enable `Allow in this Workspace` (DO NOT hit `Always Allow`) and add MCP resources (`Ctrl + / > Add Context > MCP Resources`) for filesystem/database/... MCPs.
+
+[Configuration format](https://code.visualstudio.com/docs/copilot/chat/mcp-servers#_configuration-format)
+
+```json
+// .vscode/mcp.json
+{
+  // 💡 Inputs will be prompted on first server start,
+  //    then stored securely by VS Code.
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "perplexity-key",
+      "description": "Perplexity API Key",
+      "password": true
+    }
+  ],
+  "servers": {
+    // https://github.com/ppl-ai/modelcontextprotocol/
+    // name convention: `camelCase`, no whitespace, use unique and descritive name.
+    "Perplexity": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "PERPLEXITY_API_KEY",
+        "mcp/perplexity-ask"
+      ],
+      "env": {
+        "PERPLEXITY_API_KEY": "${input:perplexity-key}"
+      }
+    },
+    // https://github.com/github/github-mcp-server/
+    "Github": {
+      "url": "https://api.githubcopilot.com/mcp/"
+    },
+    // https://github.com/modelcontextprotocol/servers/tree/main/src/fetch
+    "fetch": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    }
+  }
+}
+```
+
+## GitHub Copilot and GitHub Copilot Chat
 
 ### [Code review](https://docs.github.com/en/copilot/using-github-copilot/code-review/using-copilot-code-review?tool=vscode)
 
@@ -204,329 +295,36 @@ Select the part you want to review inside active editor and run `GitHub Copilot:
 
 Tips: If you're contributing to OSS/FOSS projects, the review instructions can be taken from `CONTRIBUTING.md`.
 
-### [Ask mode](https://code.visualstudio.com/docs/copilot/chat/chat-ask-mode)
-
-Use cases:
-
-- Asking questions about codebase, coding, general tech concepts.
-- Understand how a random piece of code works.
-- Brainstorm software design ideas.
-- Explore new tech stack.
-
-### [Edit mode](https://code.visualstudio.com/docs/copilot/chat/copilot-edits)
-
-Use cases:
-
-- Make code simple edits across multiple files in workspace.
-- Simple coding tasks when: you know what needs to change and which files to edit.
-- Lightweight operation with zero-to-few tool (set) are used.
-
-### [Agent mode](https://code.visualstudio.com/docs/copilot/chat/chat-agent-mode)
-
-Use cases:
-
-- Make complex code edits across multiple files in workspace.
-- Complex coding tasks when you have a less well-defined task. Terminal commands running
-- Heavyweight operations with a lot of tool (set) are used: `fetch`, terminal commands running, etc.
-
-> [!CAUTION]
->
-> Auto approval all tools is dangerous. Set `chat.tools.autoApprove` to `false`
-
-### [Custom modes (preview)](https://code.visualstudio.com/docs/copilot/chat/chat-modes#_custom-chat-modes)
-
-Define how chat operates, which tools it can use and how it interacts with the codebase. Chat prompt is run within the boundaries of the Chat mode, without having to configure tools or instructions for every request.
-
-To create a `*.chatmode.md` Markdown file:
-
-- Run `Chat: New Mode File` command
-- Choose either `.github/chatmodes` (workspace) or `~/.config/VSCode/User/prompts` (User profile).
-- Chat modes in workspace are looked for first.
-- Enter name.
-- Write `description:` and `tools:` in frontmatter, write _instructions_ in the body.
-- In Chat view, hit `Ctrl + .` to change chat mode.
-- Manage existing chat modes with `Chat: Configure Chat Modes` command.
-
-Use cases:
-
-- `Planning` mode: consists of read-only tools `codebase`, `fetch`, `search`, etc. to generate implementation plans.
-- `Research` mode: consists of read-only tools: `fetch`, tec. to explore new tech stack or gather information.
-- `Front-end Developer` mode: AI has read-write access to the code related to front-end development.
-
-Structure:
-
-```yml
-# plan.chatmode.md
----
-description: Generate an implementation plan for new features or refactoring existing code.
-tools: ["codebase", "fetch", "search"] # built-in tool, tool sets, MCP tools, Extension tools
----
-```
-
-```md
-# Planning mode instructions
-
-You are in planning mode. Your task is to generate an implementation plan for a new feature or for refactoring existing code.
-Don't make any code edits, just generate a plan.
-
-The plan consists of a Markdown document that describes the implementation plan, including the following sections:
-
-- Overview: A brief description of the feature or refactoring task.
-- Requirements: A list of requirements for the feature or refactoring task.
-- Implementation Steps: A detailed list of steps to implement the feature or refactoring task.
-- Testing: A list of tests that need to be implemented to verify the feature or refactoring task.
-```
-
 ### [Instructions](https://code.visualstudio.com/docs/copilot/copilot-customization#_custom-instructions)
 
-Define common guidel\ines/rules/... and should be added automatically by design
+Locations:
 
-There are also **THREE** instructions types, remember to make them not conflicting themselves
+- User-level setting file `~/.config/VSCodium/User/settings.json` (NOT RECOMMENDED, uules are project-specific and shouldn't be the same among projects)
+- Workspace-level setting file `settings.json`
+- `copilot-instructions.md`
+- `.github/instructions/*.md`.
 
-1. **One-size-fit-all file:**
+For Markdown files, set following frontmatter:
 
-- **Description:** Describe Code Generation instructions in Markdown in a single file.
-- **Format and scope:** Markdown file, workspace-level.
-- `settings.json`:
-  ```jsonc
-  "chat.promptFiles": true,
-  "github.copilot.chat.codeGeneration.useInstructionFiles": true,
-  ```
-- **Creation:** Create `.github/copilot-instructions.md` file.
-- **Attach behavior:**
-  - Manual: none
-  - Automatic: in every Chat request.
-- **Supported platform:** all code editors and IDEs supporting GitHub Copilot Chat.
-- **Use cases:** general coding practices, preferred technologies, project requirements that apply to ALL code generation tasks.
-- **Examples:**
+- `applyTo: **`: applies to every Chat request.
+- `applyTo: "**/*.ts, **/*.tsx"`: applies only to Chat requests referencing code in files of the specified types.
 
-`general-coding-guidelines.instructions.md`:
+### [Prompts](https://code.visualstudio.com/docs/copilot/copilot-customization)
 
-```yml
----
-applyTo: "**"
----
-```
+Locations:
 
-```md
-# Project general coding standards
+- User-level `~/.config/VSCodium/User/prompts`.
+- Workspace-level `.github/prompts`.
 
-## Naming Conventions
+Tips:
 
-- Use PascalCase for component names, interfaces, and type aliases
-- Use camelCase for variables, functions, and methods
-- Prefix private class members with underscore (\_)
-- Use ALL_CAPS for constants
+- Add "dependencies" by using Markdown links `[index](./index.md)`.
+- Support [VSCode's variables](https://code.visualstudio.com/docs/reference/variables-reference) by using `${variableName}` syntax. Most common variables are:
 
-## Error Handling
-
-- Use try/catch blocks for async operations
-- Implement proper error boundaries in React components
-- Always log errors with contextual information
-```
-
----
-
-`typescript-react.instructions.md`:
-
-```yml
----
-applyTo: "**/*.ts,**/*.tsx"
----
-```
-
-```md
-# Project coding standards for TypeScript and React
-
-Apply the [general coding guidelines](./general-coding.instructions.md) to all code.
-
-## TypeScript Guidelines
-
-- Use TypeScript for all new code
-- Follow functional programming principles where possible
-- Use interfaces for data structures and type definitions
-- Prefer immutable data (const, readonly)
-- Use optional chaining (?.) and nullish coalescing (??) operators
-
-## React Guidelines
-
-- Use functional components with hooks
-- Follow the React hooks rules (no conditional hooks)
-- Use React.FC type for components with children
-- Keep components small and focused
-- Use CSS modules for component styling
-```
-
-2. `*.instructions.md` file
-
-- **Description:** Describe **Code Generation** instructions in Markdown in one or more files.
-- **Scope and format:**
-  - Markdown files, workspace-level.
-  - Markdown files, User profile level.
-- **Settings:**
-  ```jsonc
-  "chat.promptFiles": true,
-  "chat.instructionsFilesLocations": {
-    "src/frontend/instructions": true,
-    "src/backend/instructions": true,
-  }
-  ```
-- **Creation:**
-  - Hit `Ctrl + Shift + P` -> `Chat: New Instructions File`.
-  - Choose `.github/instructions` if creating workspace-level file.
-  - Choose `.config/VSCodium/User/prompts` if creating User profile level file.
-- **Attach behavior:**
-  - Manual: `Ctrl + /` -> `Instructions...`
-  - Automatic: depends on `applyTo:` frontmatter.
-- **Supported platform:** VSCode and their forks.
-- **Use cases:** task-specific rules requiring fine-grained control over when to include in Chat request.
-- **Structure and examples:**
-
-  ```yml
-  ---
-  description: "A brief description of the instructions file. Displayed when users hovered the instructions file in the Chat view."
-  applyTo: "**"                 # instructions attached to all Chat request
-  applyTo: "**/*.sh,**/*.bash"  # instructions attached to Chat requests whose context is file with specific extensions
-  ---
-  Insert body here...
-  ```
-
-3. **VSCode Settings**
-
-- **Description:** Describe 5(for now) different types of instructions.
-- **Scope and format:**
-  - Text inside workspace-level `.vscode/settings.json` or a workspace-level Markdown file.
-  - Text inside User profile level `~/.config/VSCode/User/settings.json` or a workspace-level Markdown file.
-- **Settings:**
-  ```jsonc
-  "github.copilot.chat.codeGeneration.instructions": [
-    {
-      "file": ".copilot-codeGeneration-instructions.md"
-    },
-    {
-      "text": "Always add a comment: 'Generated by Copilot'.",
-      "language": "markdown" // Language Identifiers: https://code.visualstudio.com/docs/languages/identifiers#_known-language-identifiers
-    }
-  ],
-  "github.copilot.chat.testGeneration.instructions": [],
-  "github.copilot.chat.reviewSelection.instructions": [],
-  "github.copilot.chat.commitMessageGeneration.instructions": [],
-  "github.copilot.chat.pullRequestDescriptionGeneration.instructions": []
-  ```
-- **Attach behavior:**
-  - Manual: none
-  - Automatic: all or specific files via `language:` property
-- **Use cases:** general, one-size-fit-all rules for code generation, test generation, code review, commit messages generation and PR titles and descriptions generation.
-- **Examples:**
-
-  ```md
-  <!-- code generation -->
-
-  Always add a comment
-  In TypeScript always use underscore for private field names
-  Always use React functional components
-
-  <!-- code review -->
-
-  Ensure all endpoints are protected by authentication and authorization
-  Validate all user inputs and sanitize data
-
-  <!-- test generation -->
-
-  Always use vitest for testing React components
-  Implement rate limiting and throttling
-  Implement logging and monitoring for security events
-
-  <!-- commit message generation -->
-
-  {{insert [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) here}}
-
-  <!-- PR Description generation -->
-
-  Include every commit message in the pull request description
-  ```
-
-### [Prompts](https://code.visualstudio.com/docs/copilot/copilot-customization#_prompt-files-experimental)
-
-- **Description:** Ad-hoc reusable prompts. Prompt files reflect what user types in Chat input panel, utilizes all 4 prompt elements. It's different from Instructions who focuses on **rules**.
-- **Scope and format:**
-  - **Markdown files** with `.prompt.md` file suffix, **workspace-level** or **User profile level**.
-- Settings:
-  ```jsonc
-  "chat.promptFiles": true,
-  "chat.promptFilesLocations": {
-    ".github/prompts": false, // rel path are resolved from the root folders of the workspace
-    "setup/**/prompts": true  // glob patterns supported
-  }
-  ```
-- Creation:
-  - Create `.github/prompts` directory (location chosen by default, specify addition locations with `chat.promptFilesLocations` setting).
-  - Hit `Ctrl + Shift + P` -> `Chat: New Prompt File`
-  - Choose `.github/prompts` to create **workspace-level** file.
-  - Choose `.config/VSCodium/User/prompts` to create **User profile level** file.
-- Usage:
-  - Method #1: `Ctrl + Shift + P` -> `Chat: Run Prompt` -> Select a prompt file from Quick Pick UI.
-  - Method #2: In Chat view, type Chat command syntax: `/` followed by the prompt file name in the Chat input field. **TIPS:** it can provide value for _input variables_.
-  - Method #3: Open the prompt file in the current active editor, press the Play button in the editor title area. **TIPS:** this method is less commonly known, but it's useful for quickly testing and iterating on your prompt files.
-- Tips:
-
-  - Refer to additional workspace files ("dependencies") using Markdown links (e.g. `[index](./index.ts)`) or Chat variable syntax (e.g. `#index.ts`)
-  - Refer to [VSCode's variables](https://code.visualstudio.com/docs/reference/variables-reference) by using `${variableName}` syntax. Some supported variables are:
-    - Workspace variables: `${workspaceFolder}`, `${workspaceFolderBasename}`.
-    - Selection variables: `${selection}`, `${selectedText}`.
-    - File context variables: `${file}` (the content of currently opened file), `${fileBasename}` (currently opened file's name), `${fileDirname}` (the parent directory of currently opened file)
-    - Input variables: `${input:variableName}`, `${input:variableName:placeholder}` (pass values to the Prompt file from the Chat input field, e.g. `/create-react-form: formName=MyForm` )
-
-- Structure and Examples:
-
-  Generate a React form component
-
-  ```yml
-  ---
-  mode: "agent" # "ask", "edit"
-  tools: ["githubRepo", "codebase"] # array of tool (set) which would be used in Agent mode.
-  # NOTE: select Configure Tools to toggle the tools of the list of available tools in your workspace.
-  description: "Generate a new React form component"
-  ---
-  ```
-
-  ```md
-  Your goal is to generate a new React form component based on the templates in #githubRepo contoso/react-templates.
-
-  Ask for the form name and fields if not provided.
-
-  Requirements for the form:
-
-  - Use form design system components: [design-system/Form.md](../docs/design-system/Form.md)
-  - Use `react-hook-form` for form state management:
-  - Always define TypeScript types for your form data
-  - Prefer _uncontrolled_ components using register
-  - Use `defaultValues` to prevent unnecessary rerenders
-  - Use `yup` for validation:
-  - Create reusable validation schemas in separate files
-  - Use TypeScript types to ensure type safety
-  - Customize UX-friendly validation rules
-  ```
-
-  ***
-
-  Perform a security review of a REST API.
-
-  ```yml
-  ---
-  mode: "edit"
-  description: "Perform a REST API security review"
-  ---
-  ```
-
-  ```md
-  Perform a REST API security review:
-
-  - Ensure all endpoints are protected by authentication and authorization
-  - Validate all user inputs and sanitize data
-  - Implement rate limiting and throttling
-  - Implement logging and monitoring for security events
-  ```
+  - Workspace: `${workspaceFolder}`, `${workspaceFolderBasename}`.
+  - Selection: `${selection}`, `${selectedText}`.
+  - File context: `${file}` (the content of currently opened file), `${fileBasename}` (currently opened file's name), `${fileDirname}` (the parent directory of currently opened file)
+  - Input: `${input:variableName}`, `${input:variableName:placeholder}` (pass values to the Prompt file from the Chat input field, e.g. `/create-react-form: formName=MyForm`)
 
 ### [Indexing mechanism](https://code.visualstudio.com/docs/copilot/reference/workspace-context)
 
@@ -556,7 +354,7 @@ Logic:
 
 ## FAQ
 
-**Q: Does GitHub Copilot Chat index EVERY file in workspace?**
+### Question 1: Does GitHub Copilot Chat index EVERY file in workspace?
 
 A: According to [What sources are used for context?](https://code.visualstudio.com/docs/copilot/reference/workspace-context#_what-sources-are-used-for-context), here are the list of indexable and non-indexable files:
 
@@ -580,23 +378,9 @@ A: According to [What sources are used for context?](https://code.visualstudio.c
 - Anything in `.gitignore` (except for files opened in active editor, or explicitly added)
 - Binary files: images, PDFs, ...
 
----
+### Question 2: Does GitHub Copilot use indexed repository for model training?
 
-**Q: Does GitHub Copilot use indexed repository for model training?**
-
-A: [Copilot say "No"](https://docs.github.com/en/copilot/using-github-copilot/copilot-chat/indexing-repositories-for-copilot-chat#benefit-of-indexing-repositories), but don't trust them. Deploy local LLM in your workplace is the best solution.
-
-## Yet another prompt engineering practice.
-
-- Don't use coding guidelines to enforce style guidelines that can be covered by your linter or static analysis tool.
-- Don't use wording that is ambiguous or could be interpreted in different ways.
-- Don't fit multiple different ideas into a single coding guideline.
-
-Consider the size and complexity of the repository to do and don't do the following:
-
-- Refer to external resources.
-- Instructions to answer in a particular style.
-- Always respond with a certain level of detail.
+A: [Copilot say "No"](https://docs.github.com/en/copilot/using-github-copilot/copilot-chat/indexing-repositories-for-copilot-chat#benefit-of-indexing-repositories), but I don't trust them. Local LLM with restrictive networking rules is the only solution.
 
 ## References
 

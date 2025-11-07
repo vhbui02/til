@@ -13,15 +13,14 @@ This is a summary of [Simon Willison Weblog, 2025-03-11, "How I use LLMs to help
 Ask it to give you simple prototype that proves that the key requirements of that project can be met:
 
 - Is my goal achievable with current technology or tools?
-- If so, what are the possible implementation approaches?
+- If so, what are the possible implementation approaches? Among the available options, which approach is most effective or recommended? Write a simple implementation based on that approach and iterate on more sophisticated implementations.
+- If you already have determined your approach and possessed related code examples, use them as inspiration to generate implementation.
 
-  - Newer libraries might be left out, it shouldn't be an issue since I practice [the principle of boring technology](https://boringtechnology.club/). Feed it with a lot of official documentations and examples that you can find or read the documentation and write it yourself.
+Avoid introducing immatured tech stack by practicing [the principle of boring technology](https://boringtechnology.club/). Feed the LLM with a lot of official documentations (via `Context7` MCP server) and examples that you can find or read the documentation and write it yourself.
 
-- Among the available options, which approach is most effective or recommended? Write a simple implementation based on that approach and iterate on more sophisticated implementations.
+> Read [Simon Willison's "Running OCR against PDFs and images directly in your browser"](https://simonwillison.net/2024/Mar/30/ocr-pdfs-images/#ocr-how-i-built-this) to know his specific prompts and workflow.
 
-  - If you already have determined your approach and possessed related code examples, use them as inspiration to generate implementation [Simon Willison's "Running OCR against PDFs and images directly in your browser"](https://simonwillison.net/2024/Mar/30/ocr-pdfs-images/#ocr-how-i-built-this)
-
-Remember, your first prompt will often yield a decent—but not production-ready—result. The more you practice, the better your initial outcomes will be, but expect to iterate with follow-up prompts. Treat imperfect outputs as a starting point to guide the model toward your goals. The AI can revise its answers as many times as needed, so take advantage of this.
+**Remember:** your first prompt will often yield a decent—but not production-ready—result. The more you practice, the better your initial outcomes will be, but expect to iterate with follow-up prompts. Treat imperfect outputs as a starting point to guide the model toward your goals. The AI can revise its answers as many times as needed, so take advantage of this.
 
 2. Tell them exactly what to do
 
@@ -71,7 +70,7 @@ Visit [tools.simonwillison.net/colophon](https://tools.simonwillison.net/colopho
 
 When working with an unfamiliar tech stack, onboarding can be challenging—especially if the tool lacks clear documentation or the codebase is poorly commented and hard to follow. Chatting directly to your codebase can save a lot of time.
 
-GitHub Copilot Chat's Chat participant `@workspace` can use existing codebase as context. Refers to [making Copilot Chat an expert in your workspace](../github-copilot/github-copilot-best-practices.md#making-copilot-chat-an-expert-in-your-workspace) for more information.
+GitHub Copilot Chat's Chat participant `@workspace` can use existing codebase as context so you can ask.
 
 However, the context is blackboxed and wasn't visible to user, personally I would like a more transparent solution like so:
 

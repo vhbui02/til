@@ -557,6 +557,8 @@ Of course, [Chain-of-Thought (CoT)](#3-chain-of-thought-prompting) is a goog tec
 
 - For API user, finding the balance between the optimal number of input/reasoning/output tokens and the output quality is a challenge problem. The balance can only be measured using [Anthropic's "Create strong empirical evaluations"](https://docs.anthropic.com/en/docs/test-and-evaluate/) and [OpenAI's "Evaluating model performance"](https://platform.openai.com/docs/guides/evals) guides.
 
+- Use `#searchResults` tool in GitHub Copilot Chat to make edits to hundreds of files without explicitly specifying their name.
+
 ## Anecdotal claims from Redditors (required update frequently)
 
 ### Claude
@@ -1064,9 +1066,47 @@ Requirements: Before you finish, please verify your solution with test cases for
 Fix the error If any of them failed.
 ```
 
-## Family-specific Techniques
+## Vendor-specific Techniques
 
-#### GPT4.1
+### [Claude 4](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/claude-4-best-practices)
+
+- Parallel tool use:
+
+```
+For maximum efficiency, whenever you need to perform multiple independent operations, invoke all relevant tools simultaneously rather than sequentially.
+```
+
+- Reduce file creation in agentic coding:
+
+```
+If you create any temporary new files, scripts, or helper files for iteration, clean up these files by removing them at the end of the task.
+```
+
+> [!TIP]
+>
+> You can add into RIPER-5 workflow to prevent creating new files inside memory bank.
+
+- Improve Front-end performance by adding _modifiers_:
+
+```
+Don't hold back. Give it your all.
+Include as many relevant features and interactions as possible
+Add thoughtful details like hover states, transitions, and micro-interactions
+Create an impressive demonstration showcasing web development capabilities
+Apply design principles: hierarchy, contrast, balance, and movement
+```
+
+- Avoid focusing on passing tests by hard-coding, ensure robust, generalizable solutions:
+
+  ```
+  Please write a high quality, general purpose solution. Implement a solution that works correctly for all valid inputs, not just the test cases. Do not hard-code values or create solutions that only work for specific test inputs. Instead, implement the actual logic that solves the problem generally.
+
+  Focus on understanding the problem requirements and implementing the correct algorithm. Tests are there to verify correctness, not to define the solution. Provide a principled implementation that follows best practices and software design principles.
+
+  If the task is unreasonable or infeasible, or if any of the tests are incorrect, please tell me. The solution should be robust, maintainable, and extendable.
+  ```
+
+### GPT4.1
 
 Predecessors tended to "guess" and fill vague spots by its own account through user and system prompts. GPT4.1 is trained to follow instructions more literally. It's now more steerable via prompt engineering.
 
@@ -1087,27 +1127,6 @@ You MUST plan extensively before each function call, and reflect extensively on 
 2. **Tool Calls:** Skipped. This technique is for API calls. Tool use in AI-powered Code Editors such as VSCode + GitHub Copilot Chat or Cursor can automatically infer tool calls without them being explicitly specified. I won't use OpenAI API calls. Cloudflare Workers AI is much more better. Read more [here](https://cookbook.openai.com/examples/gpt4-1_prompting_guide#tool-calls).
 
 3. [**SWE-bench Verified sample prompt**](https://cookbook.openai.com/examples/gpt4-1_prompting_guide#sample-prompt-swe-bench-verified): Burke Holland - a team member of VSCode made [GPT4.1 Beast Mode](https://www.reddit.com/r/GithubCopilot/comments/1llewl7/getting_41_to_behave_like_claude/) takes this prompt as reference.
-
-#### Claude
-
-1. Prefilling Responses
-
-**Definitions:** Prefilling response is a prompting technique that beside writing the User prompt, the starting portion of the Assistant's response is also specified.
-
-**Pros:**
-
-- Vastly improve model's performance.
-- Skip preambles.
-- Enforce specific formats (JSON, XML, ...)
-- Help maintaining character consistency in role-play scenarios.
-
-**Limitations:** Only available when calling AI vendors' API. Web UI not supported.
-
-**Examples:**
-
-- [Anthropic's "Prefill Claude's response for greater output control - Example 1: Controlling output formatting and skipping the preamble"](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/prefill-claudes-response#example-1-controlling-output-formatting-and-skipping-the-preamble)
-
-- [Anthropic's "Prefill Claude's response for greater output control - Example 2: Maintaining character in roleplay scenarios"](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/prefill-claudes-response#example-2-maintaining-character-in-roleplay-scenarios)
 
 ## Prompt Engineering Materials
 

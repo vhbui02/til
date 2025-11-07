@@ -28,6 +28,13 @@ git push origin "refs/notes/*"
 
 # see the list of files which were updated during 2 commits
 git whatchanged ...
+
+# remove a file from version control but keeps it in working directory
+git rm --cached /path/to/file
+
+# call `git stash drop` when prior `git stash pop` create conflicts
+git stash pop
+git stash drop
 ```
 
 ## Branching strategy + Clean commit history
