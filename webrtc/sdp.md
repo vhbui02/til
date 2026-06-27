@@ -1,58 +1,11 @@
 # SDP (Session Description Protocol)
 
-- Data format for describing media information of a session for numerous protocols: VoIP, WebRTC (chosen by IETF and W3C), ...
-- IETF RFC 4566 with a lot of auxiliary RFCs to add media capabilities to SDP.
-- Describe a P2P connection in general, used by WebRTC specifically to describe a session, technically, negotiate the session's parameters.
-- WHIP/WHEP extensions utilize SDP to become a well-known WebRTC signaling protocol for live streaming use case.
+- Data format for describing media information of a session for numerous protocols: VoIP, WebRTC (standardized by IETF and W3C), ...
+- Used during Signalling phase. WHIP/WHEP extensions utilizing SDP become a well-known WebRTC signaling protocol for live streaming use case.
 
 ## Anatomy
 
-1. VoIP SDP (Cre: MDN)
-
-```
-# the protocol version
-v=0
-
-# the originator: "The user named 'alice' created this session, along with her session ID, network type (IN for internet), address type (IP4), and host address"
-o=alice 2890844526 2890844526 IN IP4 host.anywhere.com
-
-# the session name, can be left blank
-s=
-
-# the connection data: tell the creators of the SDP where they expect to receive data
-# - for subscribers: media (video, audio) from the publishers
-# - for publishers: network statistics, quality feedback (RTCP packets) from the subscribers
-c=IN IP4 host.anywhere.com
-
-# Direction attribute
-# 'recvonly': "I only want to receive, don't expect me to send anything"
-# 'sendonly': "I only want to send, don't expect me to receive anything"
-# 'sendrecv': "Standard two-way connection, often found in video conferencing"
-a=recvonly
-t=0 0
-
-# Media description/media lines/media streams
-
-# 1st audio track
-# Alice says: "I've opened port 49170 on my machine, please send your audio packets to this port using RTP protocol, payload type 0"
-# Bob receives this SDP, he starts sending audio stream to Alice's IP address on port 49170
-# Bob generates his own SDP (a.k.a SDP Answer) containing his opened ports for Alice to send RTCP packets
-m=audio 49170 RTP/AVP 0
-# map payload type 0 to PCMU audio codec, sample rate 8000Hz
-a=rtpmap:0 PCMU/8000
-
-# 1st video track, received on port 51372 using RTP protocol, payload type 31
-m=video 51372 RTP/AVP 31
-# map payload type 31 to H261 video codec, clock rate 90000Hz
-a=rtpmap:31 H261/90000
-
-# 2nd video track, received on port 53000 using RTP protocol, payload type 32
-m=video 53000 RTP/AVP 32
-# map payload type 32 to MPV (MPEG Video) codec
-a=rtpmap:32 MPV/90000
-```
-
-2. WebRTC SDP (Cre: https://webrtchacks.com/sdp-anatomy/)
+1. WebRTC SDP (Cre: https://webrtchacks.com/sdp-anatomy/)
 
 ```
 # ================================================ #
@@ -70,13 +23,12 @@ o=- 4611731400430051336 2 IN IP4 127.0.0.1
 s=-
 
 # the timing of the session
-# translate: 0 0 means the session is permanent or unbounded (i.e., has no start or stop time bounds)
 t=0 0
 
 # bundle groupings
 # establish the relationship between several media lines included in the SDP, i.e., audio and video
 # In WebRTC specifically, it's used to multiplex several media flows in the same RTP session.
-# '0 1': the browser offers to multiplex the "mids" 0 and 1 (more about "mid" below), however the otherside must also support it.
+# '0 1': the browser offers to multiplex the "mids" 0 and 1 (more about "mid" below). CAUTION: the otherside must also support it.
 a=group:BUNDLE 0 1
 
 # critical for WebRTC multiplexing but MediaMTX's reader.js leaves the browser's default BUNDLE setup untouched
@@ -88,20 +40,19 @@ a=msid-semantic: WMS lgsCFqt9kN2fVKw5wg3NKqGdATQoltEwOdMS
 
 ## 'm': media line
 ## 'audio': IANA media type
-## '58779': port placeholder. In classic protocol, other peers send audio data to this port. WebRTC depreciates this with ICE candidates.
+## '58779': port placeholder. Ignored in WebRTC. In classic protocol, other peers send audio data to this port. WebRTC use ICE candidates instead.
 ## 'UDP/TLS/RTP/SAVPF': send data over UDP, encrypt via DTLS, package media blocks using RTP, use Secure Audio-Video Profile with Feedback to handle connection reports and congestion control (RFC5764). Requires: SRTP + SRTCP + RTCP Feedback packets.
-
 ## '111 103 104 9 0 8 106 105 13 126': media format descriptions for sending/receiving media (a.k.a "payload types/payload numbers).
-## - Static Payload Types (<96): mapped to IANA encoding formats. Historically, early VoIP standards assigned fixed numbers to old, common codecs so browsers wouldn't need definition lines inside SDP. 
+## - Static Payload Types (<96): mapped to IANA encoding formats. Historically, early VoIP standards assigned fixed numbers to old, common codecs so browsers wouldn't need definition lines inside SDP.
 ## E.g., "0" means G711 micro-law (PCMU) codec, "8" means G711 A-law (PCMA) codec. The browser automatically reads the static payload types and immediately knows what codec they are
-## - Dynamic Payload Types (>=96): for modern high-fidelity codecs (e.g., Opus, VP8, ...) which were created after the static numbers were filled, the browsers have no idea what '111' is until it reads a Codec Parameter line called `a=rtpmap` below
+## - Dynamic Payload Types (>=96): for modern high-fidelity codecs (e.g., Opus, VP8, ...) which created after the static numbers were filled, the browsers have no idea what '111' is until it reads a Codec Parameter line called `a=rtpmap` below
 m=audio 58779 UDP/TLS/RTP/SAVPF 111 103 104 9 0 8 106 105 13 126
 
 # 'c': connection line
 ## In ancient VoIP standard used for standard SIP landline calling, the connection line acts as the SSOT. However, Web applications running on different machine types and placed different network setup with complex routers, firewalls, NAT, ... A single static IP address will guarantee failure in public internet connection.
 ## Modern WebRTC standard just insert a dummy placeholder line or a masked local mDNS hostname (e.g., ff3034b4-0c1d-411e-8ff7-e07a86b79fca.local), the IP address is bypassed and unused
 ## Introduce ICE (Interactive Connectivity Establishment) protocol: the browser acts as an agent that gathers a large bundle of connection pathways for other machines to connect to the SDP creator, called "ICE Candidates". ICE is the chosen protocol to handle NAT traversal
-## 
+##
 c=IN IP4 0.0.0.0
 
 # the identifier for 'a=group:BUNDLE 0 1', in case there are different media
@@ -119,7 +70,7 @@ a=rtcp-mux
 # Audio Lines => ICE Candidates                    #
 # ================================================ #
 
-# "Host candidate" for RTP on UDP
+# "Host candidate"
 # Browser gives the private IP of the host machine as candidates
 # Browser can receive/send SRTP and SRTCP on private IPv4 "192.168.0.196" if other peers happened on the same local network segment
 # "2122260223": priority of the candidate. Usually's the most prioritized due to its directness have the best efficiency
@@ -128,22 +79,19 @@ a=candidate:1467250027 1 udp 2122260223 192.168.0.196 46243 typ host generation 
 # Browser does not know if the other end supports rtcp-mux, therefore a port is needed in the offer
 a=candidate:1467250027 2 udp 2122260222 192.168.0.196 56280 typ host generation 0
 
-# Host candidates for RTP and RTCP on TCP
-# Less prioritized, since it's not optimal for real-time media transfer
+# Host candidates
 a=candidate:435653019 1 tcp 1845501695 192.168.0.196 0 typ host tcptype active generation 0
 a=candidate:435653019 2 tcp 1845501695 192.168.0.196 0 typ host tcptype active generation 0
 
-# Reflexive candidates for RTP and RTCP on UDP
-# "47.61.61.61:36768" are public IP:port visible from STUN perspective
-# Even less prioritized than Host candidates
+# Server Reflexive candidates
+# E.g., "47.61.61.61:36768" are public IP:port visible from STUN perspective
 a=candidate:1853887674 1 udp 1518280447 47.61.61.61 36768 typ srflx raddr 192.168.0.196 rport 36768 generation 0
 a=candidate:1853887674 2 udp 1518280447 47.61.61.61 36768 typ srflx raddr 192.168.0.196 rport 36768 generation 0
 
-# Relay candidates for RTP and RTCP on UDP
-# Obtained from TURN server (e.g., coturn), which is provisioned when creating the peer connection
-# Less prioritized than Reflexive candidates
-# "237.30.30.30:51472" is the public IP:port assigned by the TURN server
-# "47.61.61.61:54763" is the public-facing identity of the network router
+# Relay candidates
+# Obtained from TURN server (e.g., coturn), which is provisioned when creating the RTCPeerConnection
+# E.g., "237.30.30.30:51472" is the public IP:port assigned by the TURN server
+# E.g., "47.61.61.61:54763" is the public-facing identity of the network router
 a=candidate:750991856 2 udp 25108222 237.30.30.30 51472 typ relay raddr 47.61.61.61 rport 54763 generation 0
 a=candidate:750991856 1 udp 25108223 237.30.30.30 58779 typ relay raddr 47.61.61.61 rport 54761 generation 0
 ...
@@ -261,4 +209,44 @@ a=ssrc:2231627014 mslabel:lgsCFqt9kN2fVKw5wg3NKqGdATQoltEwOdMS
 a=ssrc:2231627014 label:daed9400-d0dd-4db3-b949-422499e96e2d
 a=ssrc:632943048 cname:4TOk42mSjXCkVIa6
 a=ssrc:632943048 msid:lgsCFqt9kN2fVKw5wg3NKqGdATQoltEwOdMS daed9400-d0dd-4db3-b949-422499e96e2d
+```
+
+2. VoIP SDP (Cre: MDN)
+
+```sdp
+# Protocol version
+v=0
+# Originator
+# "A user named 'alice' created this session, along with her session ID, network type (IN), address type (IP4), and host address"
+o=alice 2890844526 2890844526 IN IP4 host.example.com
+# Session name
+# can be left blank
+s=
+# Connection: where creators of the SDP expect to receive data. What kind of data?
+# - creators as subscribers: media (video, audio) from the publishers
+# - creators as publishers: network statistics, quality feedback (RTCP packets) from the subscribers
+c=IN IP4 host.anywhere.com
+# Attribute: Direction (recvonly, sendonly, sendrecv)
+a=recvonly
+# "The session is permanent or unbounded since it has no start or bound time"
+t=0 0
+
+# Media description/media lines/media streams
+
+# 1st audio track
+# Alice: "I've opened port 49170 on my machine, please send your audio packets to this port using RTP protocol, payload type 0"
+# Bob: "I've received Alice's SDP Offer, I've generated my own SDP Answer containing my opened ports for Alice to send me RTCP packets. I will sent audio stream to Alice's IP address on port 49170 and I will prepare to receive RTCP packets from Alice as well."
+m=audio 49170 RTP/AVP 0
+# map payload type 0 to PCMU audio codec, sample rate 8000Hz
+a=rtpmap:0 PCMU/8000
+
+# 1st video track, received on port 51372 using RTP protocol, payload type 31
+m=video 51372 RTP/AVP 31
+# map payload type 31 to H261 video codec, clock rate 90000Hz
+a=rtpmap:31 H261/90000
+
+# 2nd video track, received on port 53000 using RTP protocol, payload type 32
+m=video 53000 RTP/AVP 32
+# map payload type 32 to MPV (MPEG Video) codec
+a=rtpmap:32 MPV/90000
 ```
